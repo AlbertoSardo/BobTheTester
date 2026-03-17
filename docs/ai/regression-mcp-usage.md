@@ -39,10 +39,20 @@ If your Claude client supports repository commands, run:
 /bobthetester
 ```
 
+Dedicated deterministic code-review command:
+
+```text
+/bobcodereview
+```
+
 Optional JSON input:
 
 ```text
 /bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false}
+```
+
+```text
+/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
 ```
 
 Default behavior for `/bobthetester` is local execution (`dryRun:false`) unless explicitly overridden.
@@ -142,6 +152,26 @@ This one-shot command now includes deterministic sub-steps for impacted flows:
 
 If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite run).
 
+### `generate_code_review_report`
+```bash
+npm --prefix tools/regression-mcp run tool -- generate_code_review_report '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
+```
+
+Shortcut command:
+
+```bash
+npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
+```
+
+This returns deterministic findings based on:
+- sensitive path rules
+- added-line pattern checks
+- change-size thresholds
+
+Rules live in:
+
+- `config/regression/code-review-policy.json`
+
 ## Configure flow-to-spec mapping
 Deterministic mapping lives in:
 
@@ -189,6 +219,7 @@ The `review` command returns a deterministic JSON object with:
 Schema:
 
 - `config/regression/review-output.schema.json`
+- `config/regression/code-review-output.schema.json`
 
 Example (shape only):
 
@@ -250,6 +281,12 @@ Example (shape only):
 - `riskLevel=high`: test failures, or impacted flows with no selected specs.
 - `riskLevel=critical`: failures + coverage gaps at the same time.
 
+For code-review output:
+- `riskLevel=low`: no deterministic findings.
+- `riskLevel=medium`: only medium/low findings.
+- `riskLevel=high`: at least one high-severity finding.
+- `riskLevel=critical`: multiple high-severity findings, or high + multiple medium findings.
+
 ## Minimal CI integration path
 No CI configuration is currently present in this repository snapshot. For CI, run only the targeted regression command as a focused step:
 
@@ -260,3 +297,10 @@ npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headR
 ```
 
 This keeps the CI path small and deterministic while avoiding broad full-suite runs.
+
+For separate PR gates, run both commands as independent checks:
+
+```bash
+npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false,"dryRun":false}'
+npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
+```

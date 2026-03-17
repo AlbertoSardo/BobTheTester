@@ -12,6 +12,7 @@ Initial MCP server skeleton for deterministic regression review workflows.
 - `config/regression/flow-map.json`
 - `config/regression/flow-spec-map.json`
 - `config/regression/tooling.json`
+- `config/regression/code-review-policy.json`
 - `docs/flows/test-mapping.json` (human-readable mirror)
 
 ## Local development
@@ -47,6 +48,14 @@ validates suite completeness, selects relevant specs, runs Cypress locally, and 
 
 If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite fallback).
 
+## Generate structured code-review output
+```bash
+npm run code-review -- '{"baseRef":"origin/main","headRef":"HEAD"}'
+```
+
+`code-review` runs deterministic checks from `config/regression/code-review-policy.json` and returns
+structured findings with severity counts, risk level, and recommended actions.
+
 ## Generate/refresh complete Cypress suite from policy
 ```bash
 npm run suite -- '{}'
@@ -60,6 +69,9 @@ npm run tool -- validate_cypress_suite '{}'
 
 Review output format schema:
 - `config/regression/review-output.schema.json`
+
+Code-review output format schema:
+- `config/regression/code-review-output.schema.json`
 
 ## Full usage documentation
 - `docs/ai/regression-mcp-usage.md`
@@ -75,4 +87,5 @@ Review output format schema:
 - `collect_artifacts`
 - `suggest_missing_tests`
 - `read_business_review_policy`
+- `generate_code_review_report`
 - `generate_regression_review`

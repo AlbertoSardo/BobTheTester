@@ -7,6 +7,7 @@ export const DEFAULT_FLOW_MAP_PATH = "config/regression/flow-map.json";
 export const DEFAULT_FLOW_SPEC_MAP_PATH = "config/regression/flow-spec-map.json";
 export const DEFAULT_TOOLING_CONFIG_PATH = "config/regression/tooling.json";
 export const DEFAULT_BUSINESS_POLICY_PATH = "config/regression/business-review-policy.json";
+export const DEFAULT_CODE_REVIEW_POLICY_PATH = "config/regression/code-review-policy.json";
 
 export async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -80,6 +81,15 @@ export async function loadBusinessReviewPolicy(
   businessPolicyPath = DEFAULT_BUSINESS_POLICY_PATH,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, businessPolicyPath);
+  const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
+  return { path: resolvedPath, policy };
+}
+
+export async function loadCodeReviewPolicy(
+  repoRoot: string,
+  codeReviewPolicyPath = DEFAULT_CODE_REVIEW_POLICY_PATH,
+): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
+  const resolvedPath = resolveFromRepoRoot(repoRoot, codeReviewPolicyPath);
   const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
   return { path: resolvedPath, policy };
 }

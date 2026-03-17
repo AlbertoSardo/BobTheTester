@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/regression/code-review-output.schema.json",
+  "title": "CodeReviewReportOutput",
+  "type": "object",
+  "required": [
+    "tool",
+    "version",
+    "generatedAt",
+    "repoRoot",
+    "policyPath",
+    "inputs",
+    "changedFiles",
+    "summary",
+    "findings",
+    "findingCounts",
+    "riskLevel",
+    "recommendedActions",
+    "warnings"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "const": "generate_code_review_report"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "repoRoot": {
+      "type": "string"
+    },
+    "policyPath": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "includeUntracked",
+        "changedFiles"
+      ],
+      "properties": {
+        "baseRef": {
+          "type": "string"
+        },
+        "headRef": {
+          "type": "string"
+        },
+        "includeUntracked": {
+          "type": "boolean"
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "totalFiles",
+        "byExtension",
+        "totalAddedLines",
+        "totalRemovedLines",
+        "perFile"
+      ],
+      "properties": {
+        "totalFiles": {
+          "type": "integer"
+        },
+        "byExtension": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "totalAddedLines": {
+          "type": "integer"
+        },
+        "totalRemovedLines": {
+          "type": "integer"
+        },
+        "perFile": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "filePath",
+              "addedLines",
+              "removedLines",
+              "totalChangedLines"
+            ],
+            "properties": {
+              "filePath": {
+                "type": "string"
+              },
+              "addedLines": {
+                "type": "integer"
+              },
+              "removedLines": {
+                "type": "integer"
+              },
+              "totalChangedLines": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "object",
+      "required": [
+        "sensitivePathChanges",
+        "addedLineFindings",
+        "oversizedChangeFindings"
+      ],
+      "properties": {
+        "sensitivePathChanges": {
+          "$ref": "#/$defs/findingsArray"
+        },
+        "addedLineFindings": {
+          "$ref": "#/$defs/findingsArray"
+        },
+        "oversizedChangeFindings": {
+          "$ref": "#/$defs/findingsArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "findingCounts": {
+      "type": "object",
+      "required": [
+        "low",
+        "medium",
+        "high",
+        "total"
+      ],
+      "properties": {
+        "low": {
+          "type": "integer"
+        },
+        "medium": {
+          "type": "integer"
+        },
+        "high": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "recommendedActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": [
+        "ruleId",
+        "category",
+        "severity",
+        "filePath",
+        "message",
+        "evidence"
+      ],
+      "properties": {
+        "ruleId": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "sensitive-path",
+            "added-line-check",
+            "diff-size"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "lineNumber": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "findingsArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "additionalProperties": false
+}

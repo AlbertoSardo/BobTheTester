@@ -15,6 +15,7 @@ Operating rules:
 8. Ask at most 3 targeted questions only if blocked.
 9. If not blocked, proceed automatically.
 10. Keep technical and conceptual findings separate.
+11. Keep this command scoped to regression/testing checks; use `/bobcodereview` for separate code-review gate.
 
 Input handling:
 - If `$ARGUMENTS` is present and valid JSON, treat it as partial input for `generate_regression_review`.

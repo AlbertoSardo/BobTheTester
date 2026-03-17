@@ -9,6 +9,7 @@ export type ToolName =
   | "collect_artifacts"
   | "suggest_missing_tests"
   | "read_business_review_policy"
+  | "generate_code_review_report"
   | "generate_regression_review";
 
 export type JsonValue =
@@ -257,6 +258,69 @@ export interface ReadBusinessReviewPolicyOutput extends BaseToolResponse {
 }
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export type CodeReviewFindingCategory = "sensitive-path" | "added-line-check" | "diff-size";
+
+export type CodeReviewFindingSeverity = "low" | "medium" | "high";
+
+export interface CodeReviewReportInput {
+  baseRef?: string;
+  headRef?: string;
+  includeUntracked?: boolean;
+  changedFiles?: string[];
+  policyPath?: string;
+  repoRoot?: string;
+}
+
+export interface CodeReviewFinding {
+  ruleId: string;
+  category: CodeReviewFindingCategory;
+  severity: CodeReviewFindingSeverity;
+  filePath: string;
+  lineNumber?: number;
+  message: string;
+  evidence: string;
+}
+
+export interface CodeReviewReportOutput extends BaseToolResponse {
+  tool: "generate_code_review_report";
+  version: number;
+  generatedAt: string;
+  repoRoot: string;
+  policyPath: string;
+  inputs: {
+    baseRef?: string;
+    headRef?: string;
+    includeUntracked: boolean;
+    changedFiles: string[];
+  };
+  changedFiles: string[];
+  summary: {
+    totalFiles: number;
+    byExtension: Record<string, number>;
+    totalAddedLines: number;
+    totalRemovedLines: number;
+    perFile: Array<{
+      filePath: string;
+      addedLines: number;
+      removedLines: number;
+      totalChangedLines: number;
+    }>;
+  };
+  findings: {
+    sensitivePathChanges: CodeReviewFinding[];
+    addedLineFindings: CodeReviewFinding[];
+    oversizedChangeFindings: CodeReviewFinding[];
+  };
+  findingCounts: {
+    low: number;
+    medium: number;
+    high: number;
+    total: number;
+  };
+  riskLevel: RiskLevel;
+  recommendedActions: string[];
+}
 
 export interface RegressionReviewInput {
   baseRef?: string;

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "agentId": "tiware-code-reviewer",
+  "description": "Claude orchestration contract for deterministic PR code-review checks",
+  "objective": "Analyze code changes with deterministic checks and return a structured pre-merge risk report.",
+  "questionPolicy": {
+    "askOnlyWhenBlocked": true,
+    "maxTargetedQuestions": 3,
+    "questionTriggers": [
+      "missing changed files and no git history",
+      "missing repository access",
+      "ambiguous merge policy thresholds"
+    ]
+  },
+  "deterministicWorkflow": [
+    {
+      "step": 0,
+      "tool": "generate_code_review_report",
+      "purpose": "collect deterministic code-review findings and output structured merge risk"
+    }
+  ],
+  "qualityGates": [
+    {
+      "name": "code-review-risk",
+      "tool": "generate_code_review_report",
+      "required": true,
+      "condition": "riskLevel != 'high' && riskLevel != 'critical'"
+    }
+  ],
+  "structuredOutput": {
+    "requiredSchema": "config/regression/code-review-output.schema.json",
+    "requiredSections": [
+      "code_review_json",
+      "technical_findings",
+      "risk_assessment",
+      "recommended_actions"
+    ]
+  },
+  "defaultToolInput": {
+    "includeUntracked": true
+  }
+}

@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "tool": "node dist/cli.js tool",
     "review": "node dist/cli.js review",
+    "code-review": "node dist/cli.js code-review",
     "suite": "node dist/cli.js tool generate_cypress_suite",
     "suite:check": "node dist/cli.js tool validate_cypress_suite",
     "setup:bobthetester": "bash ../../scripts/setup-bobthetester.sh"

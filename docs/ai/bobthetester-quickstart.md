@@ -57,6 +57,18 @@ Behavior:
 - skips Cypress execution when no impacted specs are selected (no implicit full-suite fallback)
 - asks targeted questions only if required context is missing
 
+## 3b) Use `/bobcodereview` for separate PR code-review gate
+The dedicated command is in `.claude/commands/bobcodereview.md`.
+
+Examples:
+- `/bobcodereview`
+- `/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}`
+
+Behavior:
+- runs deterministic `generate_code_review_report`
+- applies static rules from `config/regression/code-review-policy.json`
+- returns structured findings, severity counts, and risk level
+
 To force a suite refresh before review:
 
 ```bash
@@ -74,3 +86,9 @@ Structured output with:
 - artifact paths
 - missing tests suggestions
 - risk level and actions
+
+Code-review output includes:
+- changed files and diff summary
+- sensitive-path and added-line findings
+- severity counters
+- risk level and recommended actions

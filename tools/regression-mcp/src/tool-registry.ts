@@ -1,5 +1,6 @@
 import { generateCypressSuite } from "./tools/generate-cypress-suite.js";
 import { collectArtifacts } from "./tools/collect-artifacts.js";
+import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
 import { getChangedFiles } from "./tools/get-changed-files.js";
 import { listRelevantCypressSpecs } from "./tools/list-relevant-cypress-specs.js";
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
@@ -10,6 +11,7 @@ import { runCypress } from "./tools/run-cypress.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
 import { validateCypressSuite } from "./tools/validate-cypress-suite.js";
 import type {
+  CodeReviewReportInput,
   CollectArtifactsInput,
   GenerateCypressSuiteInput,
   GetChangedFilesInput,
@@ -78,6 +80,17 @@ function toGetChangedFilesInput(input: Record<string, unknown>): GetChangedFiles
     baseRef: readOptionalString(input, "baseRef"),
     headRef: readOptionalString(input, "headRef"),
     includeUntracked: readOptionalBoolean(input, "includeUntracked"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
+function toCodeReviewReportInput(input: Record<string, unknown>): CodeReviewReportInput {
+  return {
+    baseRef: readOptionalString(input, "baseRef"),
+    headRef: readOptionalString(input, "headRef"),
+    includeUntracked: readOptionalBoolean(input, "includeUntracked"),
+    changedFiles: readOptionalStringArray(input, "changedFiles"),
+    policyPath: readOptionalString(input, "policyPath"),
     repoRoot: readOptionalString(input, "repoRoot"),
   };
 }
@@ -405,6 +418,26 @@ export const registeredTools: RegisteredTool[] = [
       additionalProperties: false,
     },
     handler: async (input) => readBusinessReviewPolicy(toReadBusinessReviewPolicyInput(input)),
+  },
+  {
+    name: "generate_code_review_report",
+    description: "Runs deterministic code-review checks and returns structured findings.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        baseRef: { type: "string" },
+        headRef: { type: "string" },
+        includeUntracked: { type: "boolean" },
+        changedFiles: {
+          type: "array",
+          items: { type: "string" },
+        },
+        policyPath: { type: "string" },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => generateCodeReviewReport(toCodeReviewReportInput(input)),
   },
   {
     name: "generate_regression_review",

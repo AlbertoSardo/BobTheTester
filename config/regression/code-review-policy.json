@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "maxChangedFiles": 30,
+  "maxChangedLinesPerFile": 400,
+  "sensitivePathRules": [
+    {
+      "id": "auth-files",
+      "pattern": "**/auth/**",
+      "severity": "high",
+      "message": "Authentication-related files changed. Require focused security review before merge."
+    },
+    {
+      "id": "permission-files",
+      "pattern": "**/permission*/**",
+      "severity": "high",
+      "message": "Permission and authorization paths changed. Validate role checks and fallback behavior."
+    },
+    {
+      "id": "runtime-config",
+      "pattern": "config/**/*.json",
+      "severity": "medium",
+      "message": "Runtime configuration changed. Validate defaults and backward compatibility."
+    },
+    {
+      "id": "automation-scripts",
+      "pattern": "scripts/**",
+      "severity": "medium",
+      "message": "Automation script changed. Verify local and CI command safety."
+    }
+  ],
+  "addedLineChecks": [
+    {
+      "id": "debugger",
+      "pattern": "\\bdebugger\\b",
+      "severity": "high",
+      "message": "Debugger statement added."
+    },
+    {
+      "id": "console-log",
+      "pattern": "\\bconsole\\.log\\(",
+      "severity": "medium",
+      "message": "Console logging added in code paths."
+    },
+    {
+      "id": "ts-ignore",
+      "pattern": "@ts-ignore",
+      "severity": "medium",
+      "message": "TypeScript ignore directive added."
+    },
+    {
+      "id": "todo-fixme-hack",
+      "pattern": "\\b(?:TODO|FIXME|HACK)\\b",
+      "severity": "low",
+      "message": "TODO/FIXME/HACK marker added."
+    }
+  ]
+}

@@ -8,6 +8,7 @@ Workflow MCP deterministico per fare regression review su flow di business con C
 - Esegue regression test con output machine-readable
 - Raccoglie report e artifact
 - Evidenzia gap di copertura (flow senza spec o file non mappati)
+- Esegue code review deterministica con finding strutturati per severita
 - Produce un output finale strutturato con rischio (`low` -> `critical`)
 
 ## Principi del progetto
@@ -88,6 +89,22 @@ Comportamento atteso:
    - output finale comprensivo con rischio e azioni.
 3. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
 
+## Agente code review: `/bobcodereview`
+Comando custom: `.claude/commands/bobcodereview.md`
+
+Esempi:
+
+```text
+/bobcodereview
+/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
+```
+
+Comportamento atteso:
+1. esegue `generate_code_review_report`
+2. applica regole deterministiche da `config/regression/code-review-policy.json`
+3. produce finding strutturati, conteggi per severita, risk level e azioni consigliate
+4. e pensato come gate separato pre-merge rispetto al gate regression
+
 ## Flusso end-to-end (come funziona)
 
 ```text
@@ -134,6 +151,12 @@ npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/
 npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":true,"dryRun":false}'
 ```
 
+5) Gate code review separato:
+
+```bash
+npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
+```
+
 ## Tool MCP disponibili
 - `get_changed_files`
 - `map_impacted_flows`
@@ -145,6 +168,7 @@ npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headR
 - `collect_artifacts`
 - `suggest_missing_tests`
 - `read_business_review_policy`
+- `generate_code_review_report`
 - `generate_regression_review`
 
 ## Config principali da conoscere
@@ -153,6 +177,8 @@ npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headR
 - `config/regression/business-review-policy.json` -> criteri business e copertura minima
 - `config/regression/tooling.json` -> configurazione esecuzione/report/artifact
 - `config/regression/review-output.schema.json` -> schema output finale
+- `config/regression/code-review-policy.json` -> regole deterministiche code review
+- `config/regression/code-review-output.schema.json` -> schema output code review
 
 Mappa leggibile per reviewer:
 - `docs/flows/test-mapping.json`
@@ -173,6 +199,13 @@ L'output review include almeno:
 - `artifactPaths`
 - `suggestedMissingTests`
 - `riskLevel`
+
+L'output code review include almeno:
+- `summary`
+- `findings`
+- `findingCounts`
+- `riskLevel`
+- `recommendedActions`
 
 ## Come mantenere il sistema aggiornato
 Quando aggiungi/modifichi flow di business:

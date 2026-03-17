@@ -4,6 +4,7 @@
   "description": "Claude orchestration contract for deterministic MCP-based technical+conceptual regression review",
   "objective": "Review a change with business-flow awareness, run targeted non-regression checks, and return actionable findings.",
   "businessPolicyPath": "config/regression/business-review-policy.json",
+  "separateCodeReviewGatePath": "config/regression/code-review-agent-orchestration.json",
   "questionPolicy": {
     "askOnlyWhenBlocked": true,
     "maxTargetedQuestions": 3,

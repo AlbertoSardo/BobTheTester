@@ -65,6 +65,7 @@ Output richiesto:
 Config ispezionabile dell'orchestrazione multi-ruolo:
 
 - `config/regression/tiware-agent-orchestration.json`
+- `config/regression/code-review-agent-orchestration.json` (gate code review separato)
 
 Policy concettuale business versionata:
 
@@ -73,6 +74,7 @@ Policy concettuale business versionata:
 Output strutturato richiesto:
 
 - `config/regression/review-output.schema.json`
+- `config/regression/code-review-output.schema.json`
 
 ## 5) Multi-agent logico (in Claude)
 Il comportamento multi-agent viene orchestrato nel prompt (non nel layer tool):
@@ -102,6 +104,8 @@ Uso:
 ```text
 /bobthetester
 /bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}
+/bobcodereview
+/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
 ```
 
 Il comando e` progettato per:
@@ -109,6 +113,11 @@ Il comando e` progettato per:
 2. eseguire review non-regression one-shot con suite generation/validation incluse;
 3. evitare run full-suite impliciti quando non ci sono spec selezionate;
 4. fare domande solo se mancano dati bloccanti.
+
+`/bobcodereview` e` progettato per:
+1. usare `generate_code_review_report` come check deterministico separato;
+2. applicare policy statica da `config/regression/code-review-policy.json`;
+3. restituire finding per severita`, risk level e azioni pre-merge.
 
 Quickstart end-to-end da GitHub:
 

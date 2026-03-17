@@ -1,7 +1,7 @@
 # Regression MCP Status
 
 ## Current milestone
-- `milestone-5 (completed)`
+- `milestone-6 (completed)`
 
 ## Decisions made
 - Keep MCP tool layer deterministic and data-oriented; no business reasoning in tool implementations.
@@ -28,6 +28,8 @@
 - Enforce suite completeness with a deterministic `validate_cypress_suite` gate before final regression review output.
 - Make `generate_regression_review` the end-to-end deterministic entrypoint that includes impacted-flow suite generation and suite validation.
 - Skip Cypress execution when no specs are selected, to avoid implicit full-suite runs and preserve deterministic local behavior.
+- Add a dedicated deterministic code-review gate (`generate_code_review_report`) separated from the regression gate.
+- Keep code-review checks static and policy-driven via `config/regression/code-review-policy.json`.
 
 ## Progress log
 - Scaffolded `tools/regression-mcp/` TypeScript package with MCP server bootstrap and tool registry.
@@ -90,6 +92,13 @@
 - Updated runtime behavior to skip report/artifact reads whenever Cypress execution is skipped (dry-run or empty selected specs).
 - Updated `/bobthetester` command contract to emit comprehensive JSON output first and rely on review one-shot workflow.
 - Updated orchestration config contract so suite completeness gate reads from `generate_regression_review` output.
+- Added deterministic `generate_code_review_report` MCP tool with structured findings (`sensitive-path`, `added-line-check`, `diff-size`).
+- Added dedicated code-review policy, output schema, and orchestration contract:
+  - `config/regression/code-review-policy.json`
+  - `config/regression/code-review-output.schema.json`
+  - `config/regression/code-review-agent-orchestration.json`
+- Added dedicated slash command `.claude/commands/bobcodereview.md` and CLI command `npm run code-review`.
+- Updated docs and quickstart to document separate regression and code-review pre-merge gates.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -158,6 +167,13 @@
 - `npm run tool -- run_cypress '{"specs":[],"dryRun":false,"browser":"electron"}'` -> pass (`status: skipped`, deterministic empty-spec behavior).
 - `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('schema-json-ok');"` -> pass.
 - `npm run typecheck && npm run build` -> pass (final verification after docs and orchestration contract updates).
+- `npm run typecheck` -> pass (post code-review tool implementation).
+- `npm run build` -> pass (post code-review tool implementation).
+- `npm run tool -- generate_code_review_report '{}'` -> pass (structured findings/risk output generated).
+- `npm run code-review -- '{"changedFiles":["tools/regression-mcp/src/review.ts"],"baseRef":"HEAD~1","headRef":"HEAD","includeUntracked":false}'` -> pass (`riskLevel: low` for sample single-file run).
+- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-policy.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-agent-orchestration.json','utf8')); console.log('code-review-json-ok');"` -> pass.
+- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('generate_code_review_report'));});"` -> pass (`true`).
+- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (regression one-shot still valid after code-review additions).
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.
@@ -188,6 +204,7 @@
   - `npm run start`
   - `npm run tool -- <tool_name> '<json_input>'`
   - `npm run review -- '<json_input>'` (one-shot: mapping + suite generation + suite validation + local Cypress run)
+  - `npm run code-review -- '<json_input>'` (separate deterministic code-review gate)
   - if selected specs are empty, Cypress run is skipped by design (no full-suite fallback)
 
 ## Likely commands to run
@@ -210,3 +227,4 @@
 - Full business-realistic suite completeness still requires wiring real app setup, fixtures, and domain assertions.
 - Need CI artifact policy (retention and naming) for screenshots/videos/reports.
 - No CI pipeline file exists yet, so CI integration is currently documented but not committed as executable workflow.
+- Added-line code-review checks currently target common source-code extensions only; extension policy may need tuning per repository stack.

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
 import { generateRegressionReview } from "./review.js";
 import { findTool, registeredTools } from "./tool-registry.js";
 
@@ -10,12 +11,14 @@ function usage(): string {
     "Usage:",
     "  node dist/cli.js tool <tool_name> [input_json_or_@file]",
     "  node dist/cli.js review [input_json_or_@file]",
+    "  node dist/cli.js code-review [input_json_or_@file]",
     "",
     `Available tools: ${toolNames}`,
     "",
     "Examples:",
     "  node dist/cli.js tool map_impacted_flows '{\"changedFiles\":[\"src/settings/profile/form.ts\"]}'",
     "  node dist/cli.js review '{\"changedFiles\":[\"src/settings/profile/form.ts\"],\"dryRun\":true}'",
+    "  node dist/cli.js code-review '{\"baseRef\":\"origin/main\",\"headRef\":\"HEAD\"}'",
   ].join("\n");
 }
 
@@ -60,6 +63,13 @@ async function run(): Promise<void> {
   if (command === "review") {
     const input = await parseInputArgument(arg1);
     const result = await generateRegressionReview(input);
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+
+  if (command === "code-review") {
+    const input = await parseInputArgument(arg1);
+    const result = await generateCodeReviewReport(input);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return;
   }
