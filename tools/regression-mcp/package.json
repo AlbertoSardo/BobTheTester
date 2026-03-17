@@ -1,0 +1,25 @@
+{
+  "name": "@bob-the-tester/regression-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic MCP server skeleton for regression review tooling",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "tool": "node dist/cli.js tool",
+    "review": "node dist/cli.js review",
+    "suite": "node dist/cli.js tool generate_cypress_suite",
+    "suite:check": "node dist/cli.js tool validate_cypress_suite",
+    "setup:bobthetester": "bash ../../scripts/setup-bobthetester.sh"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "cypress": "^14.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  }
+}

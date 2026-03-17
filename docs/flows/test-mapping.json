@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Business-flow to Cypress spec mapping for MCP regression review",
+  "flows": {
+    "user-onboarding": [
+      "cypress/e2e/flows/user-onboarding.cy.js"
+    ],
+    "user-offboarding": [
+      "cypress/e2e/flows/user-offboarding.cy.js"
+    ],
+    "profile-edit": [
+      "cypress/e2e/flows/profile-edit.cy.js"
+    ],
+    "permission-change": [
+      "cypress/e2e/flows/permission-change.cy.js"
+    ]
+  }
+}

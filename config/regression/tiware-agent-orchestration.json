@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "agentId": "tiware-regression-reviewer",
+  "description": "Claude orchestration contract for deterministic MCP-based technical+conceptual regression review",
+  "objective": "Review a change with business-flow awareness, run targeted non-regression checks, and return actionable findings.",
+  "businessPolicyPath": "config/regression/business-review-policy.json",
+  "questionPolicy": {
+    "askOnlyWhenBlocked": true,
+    "maxTargetedQuestions": 3,
+    "questionTriggers": [
+      "missing changed files and no git history",
+      "missing test environment credentials",
+      "ambiguous business intent that changes review outcome"
+    ]
+  },
+  "multiAgentRoles": [
+    {
+      "id": "technical-reviewer",
+      "focus": "code quality, reliability, maintainability, security and integration risks"
+    },
+    {
+      "id": "product-flow-reviewer",
+      "focus": "business flow correctness, UX impact, and side effects on onboarding/offboarding/profile/permissions"
+    },
+    {
+      "id": "regression-runner",
+      "focus": "deterministic selection and execution of relevant Cypress specs"
+    },
+    {
+      "id": "synthesizer",
+      "focus": "merge findings into a single prioritized recommendation set"
+    }
+  ],
+  "deterministicWorkflow": [
+    {
+      "step": 0,
+      "tool": "read_business_review_policy",
+      "purpose": "load conceptual and product policy checks used by product-flow reviewer"
+    },
+    {
+      "step": 1,
+      "tool": "generate_cypress_suite",
+      "purpose": "ensure Cypress suite coverage exists for policy-defined flows"
+    },
+    {
+      "step": 2,
+      "tool": "validate_cypress_suite",
+      "purpose": "fail early if policy-required suite coverage is still incomplete"
+    },
+    {
+      "step": 3,
+      "tool": "generate_regression_review",
+      "purpose": "produce deterministic impacted flows, selected specs, execution summary, artifacts, and risk"
+    },
+    {
+      "step": 4,
+      "tool": "suggest_missing_tests",
+      "purpose": "ensure explicit gap analysis is included when mappings/specs are incomplete"
+    }
+  ],
+  "qualityGates": [
+    {
+      "name": "suite-completeness",
+      "tool": "validate_cypress_suite",
+      "required": true,
+      "condition": "isComplete == true"
+    }
+  ],
+  "structuredOutput": {
+    "requiredSchema": "config/regression/review-output.schema.json",
+    "requiredSections": [
+      "technical_findings",
+      "product_flow_findings",
+      "business_policy_checks",
+      "regression_result",
+      "risk_assessment",
+      "recommended_actions"
+    ]
+  },
+  "defaultToolInput": {
+    "includeUntracked": true,
+    "dryRun": false,
+    "browser": "electron",
+    "updateMapping": true
+  }
+}

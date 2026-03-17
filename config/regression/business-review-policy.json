@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "policyName": "tiware-business-review-policy",
+  "lastUpdated": "2026-03-16",
+  "owners": {
+    "product": "Giuseppe (to confirm)",
+    "engineering": "TIware platform team"
+  },
+  "scope": {
+    "intent": "Guide conceptual and product-aware review alongside deterministic regression checks.",
+    "appliesToFlows": [
+      "user-onboarding",
+      "user-offboarding",
+      "profile-edit",
+      "permission-change"
+    ]
+  },
+  "globalPrinciples": [
+    {
+      "id": "user-value-first",
+      "description": "Each change should preserve or improve user outcome, not only technical correctness.",
+      "reviewSignals": [
+        "Flow still reaches user goal",
+        "No hidden manual workaround introduced"
+      ]
+    },
+    {
+      "id": "data-integrity",
+      "description": "All user-facing fields must persist, reload, and remain consistent across read/write paths.",
+      "reviewSignals": [
+        "New fields round-trip correctly",
+        "No silent data loss between UI and persistence"
+      ]
+    },
+    {
+      "id": "least-surprise",
+      "description": "Behavior, messaging, and permissions must be predictable for end users and operators.",
+      "reviewSignals": [
+        "Status messages are explicit",
+        "No unexpected side effects in adjacent flows"
+      ]
+    }
+  ],
+  "riskClassification": {
+    "critical": [
+      "Data loss in a core flow",
+      "Privilege escalation or unauthorized access",
+      "Offboarding leaves active access"
+    ],
+    "high": [
+      "Core flow cannot complete",
+      "Persisted state diverges from UI state",
+      "Flow blocked without user recovery path"
+    ],
+    "medium": [
+      "Flow works but has UX friction",
+      "Missing regression coverage for impacted flow",
+      "Incomplete operator visibility"
+    ],
+    "low": [
+      "Non-blocking copy/wording issues",
+      "Minor ergonomics improvements"
+    ]
+  },
+  "flows": {
+    "user-onboarding": {
+      "userGoal": "Create and activate a new user with required profile and access defaults.",
+      "mustHold": [
+        "Required fields are captured and persisted",
+        "Activation state is explicit",
+        "Failure messages allow correction"
+      ],
+      "conceptualReviewQuestions": [
+        "Does onboarding produce a usable account without hidden follow-up steps?",
+        "If a new field is introduced, is backward compatibility defined?",
+        "Is the first-login experience coherent with stored data and permissions?"
+      ],
+      "commonFailureModes": [
+        "Field accepted in UI but not persisted",
+        "Partial profile creation with no recovery",
+        "Account active in UI but inactive in backend"
+      ],
+      "minimumRegressionCoverage": [
+        "Happy path account creation",
+        "Validation error and recovery path",
+        "Persistence check for new/edited onboarding fields"
+      ]
+    },
+    "user-offboarding": {
+      "userGoal": "Remove or deactivate access safely while preserving required auditability.",
+      "mustHold": [
+        "Access is revoked deterministically",
+        "Audit trail remains available",
+        "User-facing or operator-facing confirmation is explicit"
+      ],
+      "conceptualReviewQuestions": [
+        "Can offboarding leave residual access in any channel?",
+        "Are downstream dependencies informed or handled?",
+        "Is the operation reversible where policy requires it?"
+      ],
+      "commonFailureModes": [
+        "UI says offboarded but token/session remains valid",
+        "Associated resources left orphaned",
+        "No clear evidence of who/when performed offboarding"
+      ],
+      "minimumRegressionCoverage": [
+        "Successful access revocation",
+        "Attempted access after offboarding is denied",
+        "Audit metadata is present"
+      ]
+    },
+    "profile-edit": {
+      "userGoal": "Allow users or operators to update profile data safely and predictably.",
+      "mustHold": [
+        "Edited fields persist and reload consistently",
+        "Validation guards invalid states",
+        "Conflict behavior is explicit"
+      ],
+      "conceptualReviewQuestions": [
+        "Can the user understand what changed and what failed?",
+        "Are required vs optional fields still clear?",
+        "Does edit behavior remain consistent across views or clients?"
+      ],
+      "commonFailureModes": [
+        "Update appears saved but reverts on reload",
+        "Conflicting edits silently overwrite data",
+        "Validation differs between frontend and backend"
+      ],
+      "minimumRegressionCoverage": [
+        "Successful edit and reload verification",
+        "Validation failure path",
+        "Edge case with optional/empty fields"
+      ]
+    },
+    "permission-change": {
+      "userGoal": "Apply role/permission updates with clear security boundaries.",
+      "mustHold": [
+        "Permissions change only for intended principal",
+        "Unauthorized permission changes are blocked",
+        "Resulting access level is explainable"
+      ],
+      "conceptualReviewQuestions": [
+        "Does the new permission model match real business responsibility?",
+        "Is least privilege maintained after change?",
+        "Can operators verify effective permissions quickly?"
+      ],
+      "commonFailureModes": [
+        "Privilege escalation through indirect path",
+        "Permission removal not enforced in runtime",
+        "UI role label mismatched with backend policy"
+      ],
+      "minimumRegressionCoverage": [
+        "Grant and revoke path",
+        "Denied action for unauthorized role",
+        "Effective permission check after update"
+      ]
+    }
+  },
+  "requiredReviewOutput": {
+    "mustInclude": [
+      "technical_findings",
+      "product_flow_findings",
+      "regressions_found",
+      "missing_tests",
+      "risk_level_and_rationale",
+      "prioritized_actions"
+    ]
+  },
+  "openPolicyQuestions": [
+    "Confirm product owner for policy approval",
+    "Define acceptable reversibility for offboarding",
+    "Define SLA for fixing high/critical review findings"
+  ]
+}

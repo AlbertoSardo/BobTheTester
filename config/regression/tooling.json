@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "git": {
+    "defaultBaseRef": "HEAD~1",
+    "defaultHeadRef": "HEAD"
+  },
+  "cypress": {
+    "command": "npm",
+    "commandArgs": [
+      "exec",
+      "--prefix",
+      "tools/regression-mcp",
+      "--",
+      "cypress"
+    ],
+    "defaultBrowser": "electron",
+    "configFile": "cypress.config.cjs",
+    "reportFormat": "json",
+    "reportPath": "artifacts/cypress/results.json",
+    "screenshotsDir": "cypress/screenshots",
+    "videosDir": "cypress/videos",
+    "resultsDir": "artifacts/cypress"
+  }
+}

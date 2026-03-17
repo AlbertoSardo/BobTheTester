@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tiware-regression": {
+      "command": "node",
+      "args": [
+        "/ABSOLUTE/PATH/TO/BobTheTester/tools/regression-mcp/dist/index.js"
+      ]
+    }
+  }
+}

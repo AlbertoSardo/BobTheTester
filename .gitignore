@@ -1,0 +1,6 @@
+.DS_Store
+artifacts/cypress/
+cypress/videos/
+cypress/screenshots/
+tools/regression-mcp/dist/
+tools/regression-mcp/node_modules/

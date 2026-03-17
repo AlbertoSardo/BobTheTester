@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mappings": [
+    {
+      "flowId": "user-onboarding",
+      "filePatterns": [
+        "src/onboarding/**",
+        "src/auth/signup/**",
+        "src/features/onboarding/**",
+        "src/features/user-onboarding/**"
+      ]
+    },
+    {
+      "flowId": "user-offboarding",
+      "filePatterns": [
+        "src/offboarding/**",
+        "src/settings/account-deletion/**",
+        "src/features/offboarding/**",
+        "src/features/user-offboarding/**"
+      ]
+    },
+    {
+      "flowId": "profile-edit",
+      "filePatterns": [
+        "src/profile/**",
+        "src/settings/profile/**",
+        "src/features/profile-edit/**"
+      ]
+    },
+    {
+      "flowId": "permission-change",
+      "filePatterns": [
+        "src/permissions/**",
+        "src/roles/**",
+        "src/settings/permissions/**",
+        "src/features/permission-change/**"
+      ]
+    }
+  ]
+}

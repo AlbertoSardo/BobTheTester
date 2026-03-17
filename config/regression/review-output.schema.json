@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/regression/review-output.schema.json",
+  "title": "RegressionReviewOutput",
+  "type": "object",
+  "required": [
+    "version",
+    "generatedAt",
+    "repoRoot",
+    "inputs",
+    "impactedFlows",
+    "selectedSpecs",
+    "passFailSummary",
+    "failedTests",
+    "artifactPaths",
+    "suggestedMissingTests",
+    "suiteCompleteness",
+    "riskLevel",
+    "execution",
+    "warnings"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "repoRoot": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "includeUntracked",
+        "changedFiles",
+        "dryRun"
+      ],
+      "properties": {
+        "baseRef": {
+          "type": "string"
+        },
+        "headRef": {
+          "type": "string"
+        },
+        "includeUntracked": {
+          "type": "boolean"
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dryRun": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "impactedFlows": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "selectedSpecs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "passFailSummary": {
+      "type": "object",
+      "required": [
+        "cypressStatus",
+        "exitCode",
+        "totals"
+      ],
+      "properties": {
+        "cypressStatus": {
+          "type": "string",
+          "enum": [
+            "skipped",
+            "passed",
+            "failed"
+          ]
+        },
+        "exitCode": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "totals": {
+          "type": "object",
+          "required": [
+            "tests",
+            "passed",
+            "failed",
+            "skipped",
+            "pending",
+            "durationMs"
+          ],
+          "properties": {
+            "tests": {
+              "type": "integer"
+            },
+            "passed": {
+              "type": "integer"
+            },
+            "failed": {
+              "type": "integer"
+            },
+            "skipped": {
+              "type": "integer"
+            },
+            "pending": {
+              "type": "integer"
+            },
+            "durationMs": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "failedTests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifactPaths": {
+      "type": "object",
+      "required": [
+        "screenshots",
+        "failedScreenshots",
+        "videos",
+        "failedVideos",
+        "reports"
+      ],
+      "properties": {
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failedScreenshots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "videos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failedVideos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "suggestedMissingTests": {
+      "type": "object",
+      "required": [
+        "flowsWithoutSpecs",
+        "unmappedFiles",
+        "suggestions"
+      ],
+      "properties": {
+        "flowsWithoutSpecs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unmappedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "suiteCompleteness": {
+      "type": "object",
+      "required": [
+        "isComplete",
+        "incompleteFlows"
+      ],
+      "properties": {
+        "isComplete": {
+          "type": "boolean"
+        },
+        "incompleteFlows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "command",
+        "reportPath",
+        "reportFormat",
+        "startedAt",
+        "finishedAt",
+        "durationMs"
+      ],
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reportPath": {
+          "type": "string"
+        },
+        "reportFormat": {
+          "type": "string",
+          "enum": [
+            "json",
+            "junit",
+            "text"
+          ]
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "finishedAt": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}
