@@ -45,8 +45,8 @@ Obiettivo: review tecnica + concettuale (business flow) con non-regression mirat
 
 Regole:
 - Prima di analizzare i risultati, usa `read_business_review_policy` per caricare i criteri concettuali.
-- Usa `generate_cypress_suite` per garantire una suite completa allineata alla policy.
-- Usa il tool MCP `generate_regression_review` subito dopo la generazione/refresh della suite.
+- Usa il tool MCP `generate_regression_review` come entrypoint one-shot (mapping, suite generation, suite validation, run Cypress mirato).
+- Se non ci sono spec impattate, mantieni `cypressStatus: skipped` (nessun fallback implicito a full-suite).
 - Se mancano dati essenziali, fai al massimo 3 domande mirate.
 - Se non sei bloccato, non fare domande e procedi.
 - Mantieni le conclusioni deterministiche e collegate all'output dei tool.
@@ -106,8 +106,8 @@ Uso:
 
 Il comando e` progettato per:
 1. caricare policy concettuale;
-2. aggiornare/generare suite Cypress da policy;
-3. eseguire review non-regression mirata;
+2. eseguire review non-regression one-shot con suite generation/validation incluse;
+3. evitare run full-suite impliciti quando non ci sono spec selezionate;
 4. fare domande solo se mancano dati bloccanti.
 
 Quickstart end-to-end da GitHub:

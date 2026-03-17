@@ -1,5 +1,6 @@
 import { findRepositoryRoot } from "./config.js";
 import { collectArtifacts } from "./tools/collect-artifacts.js";
+import { generateCypressSuite } from "./tools/generate-cypress-suite.js";
 import { getChangedFiles } from "./tools/get-changed-files.js";
 import { listRelevantCypressSpecs } from "./tools/list-relevant-cypress-specs.js";
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
@@ -83,6 +84,13 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
+  const suiteGeneration = await generateCypressSuite({
+    flows: impacted.impactedFlowIds,
+    policyPath: input.policyPath,
+    flowSpecMapPath: input.flowSpecMapPath,
+    repoRoot,
+  });
+
   const selected = await listRelevantCypressSpecs({
     impactedFlowIds: impacted.impactedFlowIds,
     flowSpecMapPath: input.flowSpecMapPath,
@@ -103,8 +111,14 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
-  const report =
+  const shouldSkipRuntimeReads = dryRun === true || run.status === "skipped";
+  const runtimeReadSkipReason =
     dryRun === true
+      ? "Dry run enabled: report parsing skipped to avoid stale artifact reuse."
+      : "Cypress execution skipped: report parsing and artifact collection skipped to avoid stale artifact reuse.";
+
+  const report =
+    shouldSkipRuntimeReads
       ? {
           tool: "read_cypress_report" as const,
           reportPath: run.reportPath,
@@ -120,7 +134,7 @@ export async function generateRegressionReview(
           },
           failures: [],
           failedSpecFiles: [],
-          warnings: ["Dry run enabled: report parsing skipped to avoid stale artifact reuse."],
+          warnings: [runtimeReadSkipReason],
         }
       : await readCypressReport({
           reportPath: run.reportPath,
@@ -129,7 +143,7 @@ export async function generateRegressionReview(
         });
 
   const artifacts =
-    dryRun === true
+    shouldSkipRuntimeReads
       ? {
           tool: "collect_artifacts" as const,
           screenshots: [],
@@ -138,7 +152,7 @@ export async function generateRegressionReview(
           failedVideos: [],
           reports: [],
           missingDirectories: [],
-          warnings: ["Dry run enabled: artifact collection skipped to avoid stale artifact reuse."],
+          warnings: [runtimeReadSkipReason],
         }
       : await collectArtifacts({
           reportPath: run.reportPath,
@@ -153,7 +167,7 @@ export async function generateRegressionReview(
   });
 
   const suiteValidation = await validateCypressSuite({
-    flows: impacted.impactedFlowIds.length > 0 ? impacted.impactedFlowIds : undefined,
+    flows: impacted.impactedFlowIds,
     policyPath: input.policyPath,
     flowSpecMapPath: input.flowSpecMapPath,
     repoRoot,
@@ -177,6 +191,7 @@ export async function generateRegressionReview(
   const warnings = uniqueSorted([
     ...(changedFilesOutput?.warnings ?? []),
     ...impacted.warnings,
+    ...suiteGeneration.warnings,
     ...selected.warnings,
     ...run.warnings,
     ...report.warnings,
@@ -214,7 +229,18 @@ export async function generateRegressionReview(
       changedFiles,
       dryRun,
     },
+    mapping: {
+      fileToFlows: impacted.fileToFlows,
+      unmappedFiles: impacted.unmappedFiles,
+    },
     impactedFlows: impacted.impactedFlowIds,
+    suiteGeneration: {
+      targetFlows: suiteGeneration.targetFlows,
+      createdSpecFiles: suiteGeneration.createdSpecFiles,
+      updatedSpecFiles: suiteGeneration.updatedSpecFiles,
+      unchangedSpecFiles: suiteGeneration.unchangedSpecFiles,
+      mappingUpdated: suiteGeneration.mappingUpdated,
+    },
     selectedSpecs: selected.resolvedSpecs,
     passFailSummary: {
       cypressStatus: run.status,

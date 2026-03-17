@@ -45,6 +45,8 @@ Optional JSON input:
 /bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false}
 ```
 
+Default behavior for `/bobthetester` is local execution (`dryRun:false`) unless explicitly overridden.
+
 ## Invoke each tool locally (deterministic CLI wrapper)
 All commands below run from repository root and return JSON.
 
@@ -133,6 +135,13 @@ npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
 npm --prefix tools/regression-mcp run tool -- generate_regression_review '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'
 ```
 
+This one-shot command now includes deterministic sub-steps for impacted flows:
+- `generate_cypress_suite`
+- `validate_cypress_suite`
+- Cypress execution only on selected specs
+
+If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite run).
+
 ## Configure flow-to-spec mapping
 Deterministic mapping lives in:
 
@@ -166,7 +175,10 @@ npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headR
 ## Structured review output format
 The `review` command returns a deterministic JSON object with:
 
+- `mapping`
 - `impactedFlows`
+- `suiteGeneration`
+- `suiteCompleteness`
 - `selectedSpecs`
 - `passFailSummary`
 - `failedTests`
@@ -184,7 +196,24 @@ Example (shape only):
 {
   "version": 1,
   "generatedAt": "2026-03-16T00:00:00.000Z",
+  "mapping": {
+    "fileToFlows": {
+      "src/settings/profile/form.ts": ["profile-edit"]
+    },
+    "unmappedFiles": []
+  },
   "impactedFlows": ["profile-edit"],
+  "suiteGeneration": {
+    "targetFlows": ["profile-edit"],
+    "createdSpecFiles": [],
+    "updatedSpecFiles": [],
+    "unchangedSpecFiles": ["cypress/e2e/flows/profile-edit.cy.js"],
+    "mappingUpdated": false
+  },
+  "suiteCompleteness": {
+    "isComplete": true,
+    "incompleteFlows": []
+  },
   "selectedSpecs": ["cypress/e2e/flows/profile-edit.cy.js"],
   "passFailSummary": {
     "cypressStatus": "passed",

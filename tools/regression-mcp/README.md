@@ -42,6 +42,11 @@ npm run tool -- map_impacted_flows '{"changedFiles":["src/settings/profile/form.
 npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'
 ```
 
+`review` is one-shot and deterministic: it maps changed files, generates/updates impacted-flow suite coverage,
+validates suite completeness, selects relevant specs, runs Cypress locally, and returns a comprehensive JSON result.
+
+If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite fallback).
+
 ## Generate/refresh complete Cypress suite from policy
 ```bash
 npm run suite -- '{}'

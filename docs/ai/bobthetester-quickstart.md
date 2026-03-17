@@ -53,9 +53,8 @@ Examples:
 
 Behavior:
 - loads conceptual policy with `read_business_review_policy`
-- can auto-generate/refresh Cypress flow suite with `generate_cypress_suite`
-- validates suite completeness with `validate_cypress_suite`
-- runs deterministic regression pipeline with `generate_regression_review`
+- runs deterministic one-shot pipeline with `generate_regression_review` (mapping, suite generation, suite validation, targeted Cypress execution)
+- skips Cypress execution when no impacted specs are selected (no implicit full-suite fallback)
 - asks targeted questions only if required context is missing
 
 To force a suite refresh before review:
@@ -66,7 +65,9 @@ npm --prefix tools/regression-mcp run suite -- '{}'
 
 ## 4) What you get
 Structured output with:
+- mapping details (`fileToFlows`, `unmappedFiles`)
 - impacted flows
+- suite generation summary
 - selected Cypress specs
 - pass/fail summary
 - failed tests

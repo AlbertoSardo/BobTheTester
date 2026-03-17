@@ -242,11 +242,14 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
   const warnings: string[] = [];
 
   const specs = Array.from(new Set(input.specs)).sort((a, b) => a.localeCompare(b));
+  const startedAt = new Date();
 
   if (specs.length > 0) {
     args.push("--spec", specs.join(","));
   } else {
-    warnings.push("No Cypress specs were provided to run_cypress.");
+    warnings.push(
+      "No Cypress specs were selected. Skipped execution to avoid unintended full-suite Cypress runs.",
+    );
   }
 
   const browser = input.browser ?? toolingConfig.cypress.defaultBrowser;
@@ -278,7 +281,26 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
     args.push(...input.extraArgs);
   }
 
-  const startedAt = new Date();
+  if (specs.length === 0) {
+    const finishedAt = new Date();
+    return {
+      tool: "run_cypress",
+      dryRun,
+      command: [command, ...args],
+      cwd: repoRoot,
+      specs,
+      reportPath,
+      reportFormat,
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      exitCode: null,
+      status: "skipped",
+      stdout: "",
+      stderr: "",
+      warnings,
+    };
+  }
 
   if (dryRun) {
     const finishedAt = new Date();

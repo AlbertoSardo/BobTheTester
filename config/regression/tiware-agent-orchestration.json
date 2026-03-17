@@ -39,31 +39,16 @@
     },
     {
       "step": 1,
-      "tool": "generate_cypress_suite",
-      "purpose": "ensure Cypress suite coverage exists for policy-defined flows"
-    },
-    {
-      "step": 2,
-      "tool": "validate_cypress_suite",
-      "purpose": "fail early if policy-required suite coverage is still incomplete"
-    },
-    {
-      "step": 3,
       "tool": "generate_regression_review",
-      "purpose": "produce deterministic impacted flows, selected specs, execution summary, artifacts, and risk"
-    },
-    {
-      "step": 4,
-      "tool": "suggest_missing_tests",
-      "purpose": "ensure explicit gap analysis is included when mappings/specs are incomplete"
+      "purpose": "produce deterministic impacted flows, mapping details, targeted suite generation/validation, execution summary, artifacts, and risk"
     }
   ],
   "qualityGates": [
     {
       "name": "suite-completeness",
-      "tool": "validate_cypress_suite",
+      "tool": "generate_regression_review",
       "required": true,
-      "condition": "isComplete == true"
+      "condition": "suiteCompleteness.isComplete == true"
     }
   ],
   "structuredOutput": {

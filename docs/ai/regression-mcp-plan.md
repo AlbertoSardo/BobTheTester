@@ -6,6 +6,12 @@
 - Missing from current workspace: package manager files (`package.json`, lockfiles), Cypress config/specs, CI workflows, and existing project docs.
 - Planning implication: this plan defines a deterministic architecture and phased implementation, with explicit open questions to resolve once the full repository contents are available.
 
+## Implementation update (2026-03-17)
+- Milestones 1-5 are implemented in the current repository state.
+- `generate_regression_review` now performs targeted suite generation + suite validation before Cypress execution.
+- When no specs are selected for impacted changes, Cypress execution is skipped intentionally (no implicit full-suite fallback).
+- The structured review contract now includes mapping and suite-generation details for end-to-end traceability.
+
 ## 1) Concise architecture summary
 - **Orchestrator (reasoning layer)**: decides *why* a flow is relevant, calls MCP tools in sequence, and produces the final regression review narrative.
 - **MCP server (deterministic tool layer)**: exposes stable, side-effect-scoped tools with explicit inputs/outputs and no business reasoning heuristics.

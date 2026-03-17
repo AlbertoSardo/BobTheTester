@@ -8,7 +8,9 @@
     "generatedAt",
     "repoRoot",
     "inputs",
+    "mapping",
     "impactedFlows",
+    "suiteGeneration",
     "selectedSpecs",
     "passFailSummary",
     "failedTests",
@@ -59,11 +61,76 @@
       },
       "additionalProperties": false
     },
+    "mapping": {
+      "type": "object",
+      "required": [
+        "fileToFlows",
+        "unmappedFiles"
+      ],
+      "properties": {
+        "fileToFlows": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "unmappedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "impactedFlows": {
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "suiteGeneration": {
+      "type": "object",
+      "required": [
+        "targetFlows",
+        "createdSpecFiles",
+        "updatedSpecFiles",
+        "unchangedSpecFiles",
+        "mappingUpdated"
+      ],
+      "properties": {
+        "targetFlows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdSpecFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedSpecFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unchangedSpecFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mappingUpdated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     },
     "selectedSpecs": {
       "type": "array",

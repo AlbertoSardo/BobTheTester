@@ -1,7 +1,7 @@
 # Regression MCP Status
 
 ## Current milestone
-- `milestone-4 (completed)`
+- `milestone-5 (completed)`
 
 ## Decisions made
 - Keep MCP tool layer deterministic and data-oriented; no business reasoning in tool implementations.
@@ -26,6 +26,8 @@
 - Provide a one-command bootstrap script (`scripts/setup-bobthetester.sh`) to minimize manual MCP setup friction from GitHub clone.
 - Make Cypress suite generation a plugin-agent responsibility (deterministic tool) instead of a manual assistant step.
 - Enforce suite completeness with a deterministic `validate_cypress_suite` gate before final regression review output.
+- Make `generate_regression_review` the end-to-end deterministic entrypoint that includes impacted-flow suite generation and suite validation.
+- Skip Cypress execution when no specs are selected, to avoid implicit full-suite runs and preserve deterministic local behavior.
 
 ## Progress log
 - Scaffolded `tools/regression-mcp/` TypeScript package with MCP server bootstrap and tool registry.
@@ -83,6 +85,11 @@
 - Updated review orchestration to include suite completeness in output and keep risk at least `high` when suite coverage is incomplete.
 - Validated quality-gate flow with direct tool invocation and dry-run orchestration check.
 - Added root-level `README.md` with install/setup instructions, Claude MCP config options, and full end-to-end workflow documentation.
+- Updated `generate_regression_review` to generate/update suite for impacted flows before selecting specs and running Cypress.
+- Extended structured review output with `mapping` and `suiteGeneration` sections for end-to-end traceability.
+- Updated runtime behavior to skip report/artifact reads whenever Cypress execution is skipped (dry-run or empty selected specs).
+- Updated `/bobthetester` command contract to emit comprehensive JSON output first and rely on review one-shot workflow.
+- Updated orchestration config contract so suite completeness gate reads from `generate_regression_review` output.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -144,6 +151,13 @@
 - `npm run tool -- read_cypress_report '{}'` -> pass (parsed 4 passed / 0 failed).
 - `npm run tool -- collect_artifacts '{}'` -> pass (video and report paths returned).
 - `npm run typecheck` -> pass (post root README end-to-end documentation update).
+- `npm run typecheck` -> pass (post one-shot review workflow updates).
+- `npm run build` -> pass (post one-shot review workflow updates).
+- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'` -> pass (4 passed / 0 failed, includes mapping + suiteGeneration sections).
+- `npm run tool -- generate_regression_review '{"changedFiles":["src/experimental/new-widget.ts"],"dryRun":false,"browser":"electron"}'` -> pass (`cypressStatus: skipped`, no implicit full-suite run).
+- `npm run tool -- run_cypress '{"specs":[],"dryRun":false,"browser":"electron"}'` -> pass (`status: skipped`, deterministic empty-spec behavior).
+- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('schema-json-ok');"` -> pass.
+- `npm run typecheck && npm run build` -> pass (final verification after docs and orchestration contract updates).
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.
@@ -173,7 +187,8 @@
   - `npm run build`
   - `npm run start`
   - `npm run tool -- <tool_name> '<json_input>'`
-  - `npm run review -- '<json_input>'`
+  - `npm run review -- '<json_input>'` (one-shot: mapping + suite generation + suite validation + local Cypress run)
+  - if selected specs are empty, Cypress run is skipped by design (no full-suite fallback)
 
 ## Likely commands to run
 - `npm install`

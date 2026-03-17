@@ -287,7 +287,18 @@ export interface RegressionReviewOutput {
     changedFiles: string[];
     dryRun: boolean;
   };
+  mapping: {
+    fileToFlows: Record<string, string[]>;
+    unmappedFiles: string[];
+  };
   impactedFlows: string[];
+  suiteGeneration: {
+    targetFlows: string[];
+    createdSpecFiles: string[];
+    updatedSpecFiles: string[];
+    unchangedSpecFiles: string[];
+    mappingUpdated: boolean;
+  };
   selectedSpecs: string[];
   passFailSummary: {
     cypressStatus: "skipped" | "passed" | "failed";

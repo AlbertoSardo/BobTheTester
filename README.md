@@ -80,26 +80,27 @@ Esempi:
 
 Comportamento atteso:
 1. legge policy business (`read_business_review_policy`)
-2. genera/aggiorna suite (`generate_cypress_suite`)
-3. valida completezza (`validate_cypress_suite`)
-4. esegue review orchestrata (`generate_regression_review`)
-5. include gap mapping/copertura e azioni prioritarie
+2. esegue review orchestrata (`generate_regression_review`) che include:
+   - mapping file -> flow,
+   - generazione/aggiornamento suite sui flow impattati,
+   - validazione completezza,
+   - run Cypress locale sulle sole spec selezionate,
+   - output finale comprensivo con rischio e azioni.
+3. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
 
 ## Flusso end-to-end (come funziona)
 
 ```text
 Changed files/git diff
   -> map_impacted_flows
+  -> generate_cypress_suite (solo flow impattati)
+  -> validate_cypress_suite (solo flow impattati)
   -> list_relevant_cypress_specs
   -> run_cypress
   -> read_cypress_report + collect_artifacts
   -> suggest_missing_tests
   -> generate_regression_review (output finale con risk level)
 ```
-
-In parallelo, prima della review completa:
-- `generate_cypress_suite` assicura spec baseline per i flow in policy
-- `validate_cypress_suite` fa quality gate (`isComplete`)
 
 ## Esecuzione manuale (senza slash command)
 Dal root del repo:
@@ -162,13 +163,15 @@ Mappa leggibile per reviewer:
 - Screenshot: `cypress/screenshots/`
 
 L'output review include almeno:
+- `mapping`
 - `impactedFlows`
+- `suiteGeneration`
+- `suiteCompleteness`
 - `selectedSpecs`
 - `passFailSummary`
 - `failedTests`
 - `artifactPaths`
 - `suggestedMissingTests`
-- `suiteCompleteness`
 - `riskLevel`
 
 ## Come mantenere il sistema aggiornato
@@ -188,7 +191,7 @@ npm --prefix tools/regression-mcp run suite:check -- '{}'
 - `/bobthetester` non trovato: verifica che il client Claude carichi `.claude/commands/`
 - MCP non parte: verifica che esista `tools/regression-mcp/dist/index.js` (build mancante)
 - Nessun test eseguito: controlla `dryRun` (se `true`, esecuzione reale viene saltata)
-- Nessuna spec selezionata: controlla mapping in `flow-map.json` e `flow-spec-map.json`
+- Nessuna spec selezionata: Cypress viene saltato per sicurezza; controlla mapping in `flow-map.json` e `flow-spec-map.json`
 
 ## Documentazione di dettaglio
 - `docs/ai/bobthetester-quickstart.md`
