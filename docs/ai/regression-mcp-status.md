@@ -82,6 +82,7 @@
 - Added deterministic `validate_cypress_suite` tool to compare business-policy required scenarios against mapped spec coverage.
 - Updated review orchestration to include suite completeness in output and keep risk at least `high` when suite coverage is incomplete.
 - Validated quality-gate flow with direct tool invocation and dry-run orchestration check.
+- Added root-level `README.md` with install/setup instructions, Claude MCP config options, and full end-to-end workflow documentation.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -142,6 +143,7 @@
 - `npm run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-onboarding.cy.js"],"dryRun":false,"browser":"electron"}'` -> pass (4 passed / 0 failed).
 - `npm run tool -- read_cypress_report '{}'` -> pass (parsed 4 passed / 0 failed).
 - `npm run tool -- collect_artifacts '{}'` -> pass (video and report paths returned).
+- `npm run typecheck` -> pass (post root README end-to-end documentation update).
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.
