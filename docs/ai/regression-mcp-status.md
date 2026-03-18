@@ -104,6 +104,7 @@
 - Removed standalone `.claude/commands/bobcodereview.md` to avoid split command paths.
 - Updated unified orchestration contract to include both deterministic gates directly in `config/regression/tiware-agent-orchestration.json`.
 - Added a Mermaid end-to-end diagram to `README.md` and clarified that output supports human merge decisions without auto-merge execution.
+- Simplified the README Mermaid flow into a beginner-friendly step-by-step diagram and added plain-language explanation for each step.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -184,6 +185,7 @@
 - `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (unified command regression subflow smoke check).
 - `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (unified command code-review subflow smoke check).
 - `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); console.log('orchestration-json-ok');"` -> pass.
+- `npm run typecheck` -> pass (post README Mermaid simplification and step-by-step explanation update).
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.

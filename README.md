@@ -96,25 +96,32 @@ Comportamento atteso:
 
 ```mermaid
 flowchart TD
-  A["Invoke /bobthetester"] --> B["Normalize shared input<br/>baseRef, headRef, changedFiles, includeUntracked"]
-  B --> C["read_business_review_policy"]
-  C --> D["generate_regression_review"]
-  C --> E["generate_code_review_report"]
+  A["1) Avvio /bobthetester"] --> B["2) Legge policy business"]
+  B --> C["3) Esegue regression review"]
+  B --> D["4) Esegue code review deterministica"]
 
-  D --> D1["map_impacted_flows"]
-  D1 --> D2["generate_cypress_suite and validate_cypress_suite"]
-  D2 --> D3["list_relevant_cypress_specs"]
-  D3 --> D4{"selectedSpecs is empty?"}
-  D4 -- "no" --> D5["run_cypress, read_cypress_report, collect_artifacts"]
-  D4 -- "yes" --> D6["skip Cypress deterministically"]
-  D5 --> F["regressionRiskLevel"]
-  D6 --> F
-
-  E --> G["codeReviewRiskLevel and deterministic findings"]
-  F --> H["overallRiskLevel from highest risk"]
+  C --> E{"Spec Cypress selezionate?"}
+  E -- "si" --> F["5) Run Cypress + report + artifact"]
+  E -- "no" --> G["5) Salta Cypress in modo sicuro"]
+  F --> H["6) Calcola riskLevel regression"]
   G --> H
-  H --> I["combined output for human decision<br/>no auto-merge action"]
+
+  D --> I["7) Calcola riskLevel code review"]
+  H --> J["8) Calcola overallRiskLevel"]
+  I --> J
+  J --> K["9) Output finale per decisione umana (no auto-merge)"]
 ```
+
+Spiegazione semplice degli step:
+1. Avvii `/bobthetester` con file cambiati o con `baseRef/headRef`.
+2. L'agente carica la policy business per sapere cosa controllare.
+3. Parte il flusso regression: mapping flow, suite/check, selezione spec.
+4. In parallelo parte la code review deterministica sullo stesso scope.
+5. Se ci sono spec, esegue Cypress; se non ci sono, lo salta senza full suite implicita.
+6. Calcola il rischio regression dai risultati test/copertura.
+7. Calcola il rischio code review dai finding deterministici.
+8. Combina i due rischi in `overallRiskLevel`.
+9. Restituisce un report unico per aiutare la decisione umana di merge.
 
 ## Esecuzione manuale (senza slash command)
 Dal root del repo:
