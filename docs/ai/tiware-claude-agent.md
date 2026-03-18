@@ -46,6 +46,7 @@ Obiettivo: review tecnica + concettuale (business flow) con non-regression mirat
 Regole:
 - Prima di analizzare i risultati, usa `read_business_review_policy` per caricare i criteri concettuali.
 - Usa il tool MCP `generate_regression_review` come entrypoint one-shot (mapping, suite generation, suite validation, run Cypress mirato).
+- Nella stessa esecuzione usa `generate_code_review_report` sullo stesso scope di change set.
 - Se non ci sono spec impattate, mantieni `cypressStatus: skipped` (nessun fallback implicito a full-suite).
 - Se mancano dati essenziali, fai al massimo 3 domande mirate.
 - Se non sei bloccato, non fare domande e procedi.
@@ -65,7 +66,6 @@ Output richiesto:
 Config ispezionabile dell'orchestrazione multi-ruolo:
 
 - `config/regression/tiware-agent-orchestration.json`
-- `config/regression/code-review-agent-orchestration.json` (gate code review separato)
 
 Policy concettuale business versionata:
 
@@ -104,20 +104,14 @@ Uso:
 ```text
 /bobthetester
 /bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}
-/bobcodereview
-/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
 ```
 
 Il comando e` progettato per:
 1. caricare policy concettuale;
 2. eseguire review non-regression one-shot con suite generation/validation incluse;
-3. evitare run full-suite impliciti quando non ci sono spec selezionate;
-4. fare domande solo se mancano dati bloccanti.
-
-`/bobcodereview` e` progettato per:
-1. usare `generate_code_review_report` come check deterministico separato;
-2. applicare policy statica da `config/regression/code-review-policy.json`;
-3. restituire finding per severita`, risk level e azioni pre-merge.
+3. eseguire anche il gate code review deterministico (`generate_code_review_report`);
+4. evitare run full-suite impliciti quando non ci sono spec selezionate;
+5. fare domande solo se mancano dati bloccanti.
 
 Quickstart end-to-end da GitHub:
 

@@ -1,10 +1,10 @@
 {
   "version": 1,
   "agentId": "tiware-regression-reviewer",
-  "description": "Claude orchestration contract for deterministic MCP-based technical+conceptual regression review",
-  "objective": "Review a change with business-flow awareness, run targeted non-regression checks, and return actionable findings.",
+  "description": "Claude orchestration contract for deterministic unified regression and code review",
+  "objective": "Review a change with business-flow awareness, run targeted non-regression checks and deterministic code-review checks, and return actionable findings.",
   "businessPolicyPath": "config/regression/business-review-policy.json",
-  "separateCodeReviewGatePath": "config/regression/code-review-agent-orchestration.json",
+  "codeReviewPolicyPath": "config/regression/code-review-policy.json",
   "questionPolicy": {
     "askOnlyWhenBlocked": true,
     "maxTargetedQuestions": 3,
@@ -42,6 +42,11 @@
       "step": 1,
       "tool": "generate_regression_review",
       "purpose": "produce deterministic impacted flows, mapping details, targeted suite generation/validation, execution summary, artifacts, and risk"
+    },
+    {
+      "step": 2,
+      "tool": "generate_code_review_report",
+      "purpose": "produce deterministic code-quality/security/change-size findings and a merge risk level"
     }
   ],
   "qualityGates": [
@@ -50,15 +55,23 @@
       "tool": "generate_regression_review",
       "required": true,
       "condition": "suiteCompleteness.isComplete == true"
+    },
+    {
+      "name": "code-review-risk",
+      "tool": "generate_code_review_report",
+      "required": true,
+      "condition": "riskLevel != 'high' && riskLevel != 'critical'"
     }
   ],
   "structuredOutput": {
     "requiredSchema": "config/regression/review-output.schema.json",
+    "secondaryRequiredSchema": "config/regression/code-review-output.schema.json",
     "requiredSections": [
       "technical_findings",
       "product_flow_findings",
       "business_policy_checks",
       "regression_result",
+      "code_review_result",
       "risk_assessment",
       "recommended_actions"
     ]

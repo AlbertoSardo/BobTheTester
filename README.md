@@ -87,36 +87,33 @@ Comportamento atteso:
    - validazione completezza,
    - run Cypress locale sulle sole spec selezionate,
    - output finale comprensivo con rischio e azioni.
-3. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
-
-## Agente code review: `/bobcodereview`
-Comando custom: `.claude/commands/bobcodereview.md`
-
-Esempi:
-
-```text
-/bobcodereview
-/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
-```
-
-Comportamento atteso:
-1. esegue `generate_code_review_report`
-2. applica regole deterministiche da `config/regression/code-review-policy.json`
-3. produce finding strutturati, conteggi per severita, risk level e azioni consigliate
-4. e pensato come gate separato pre-merge rispetto al gate regression
+3. esegue anche `generate_code_review_report` sullo stesso scope di modifica.
+4. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
+5. produce un risultato unico che combina regression + code-review.
+6. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
 
 ## Flusso end-to-end (come funziona)
 
-```text
-Changed files/git diff
-  -> map_impacted_flows
-  -> generate_cypress_suite (solo flow impattati)
-  -> validate_cypress_suite (solo flow impattati)
-  -> list_relevant_cypress_specs
-  -> run_cypress
-  -> read_cypress_report + collect_artifacts
-  -> suggest_missing_tests
-  -> generate_regression_review (output finale con risk level)
+```mermaid
+flowchart TD
+  A[Invoke /bobthetester] --> B[Normalize shared input\nbaseRef/headRef/changedFiles/includeUntracked]
+  B --> C[read_business_review_policy]
+  C --> D[generate_regression_review]
+  C --> E[generate_code_review_report]
+
+  D --> D1[map_impacted_flows]
+  D1 --> D2[generate_cypress_suite + validate_cypress_suite]
+  D2 --> D3[list_relevant_cypress_specs]
+  D3 --> D4{selectedSpecs empty?}
+  D4 -- no --> D5[run_cypress + read_cypress_report + collect_artifacts]
+  D4 -- yes --> D6[skip Cypress deterministically]
+  D5 --> F[regression riskLevel]
+  D6 --> F
+
+  E --> G[deterministic code-review findings + riskLevel]
+  F --> H[overallRiskLevel = max(regression, code-review)]
+  G --> H
+  H --> I[combined output for human decision\nno auto-merge action]
 ```
 
 ## Esecuzione manuale (senza slash command)
@@ -151,7 +148,7 @@ npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/
 npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":true,"dryRun":false}'
 ```
 
-5) Gate code review separato:
+5) (Opzionale) solo gate code review via CLI:
 
 ```bash
 npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'

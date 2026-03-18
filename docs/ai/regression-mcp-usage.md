@@ -39,23 +39,16 @@ If your Claude client supports repository commands, run:
 /bobthetester
 ```
 
-Dedicated deterministic code-review command:
-
-```text
-/bobcodereview
-```
-
 Optional JSON input:
 
 ```text
 /bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false}
 ```
 
-```text
-/bobcodereview {"baseRef":"origin/main","headRef":"HEAD"}
-```
-
 Default behavior for `/bobthetester` is local execution (`dryRun:false`) unless explicitly overridden.
+The command runs both deterministic pipelines on the same scope:
+- `generate_regression_review`
+- `generate_code_review_report`
 
 ## Invoke each tool locally (deterministic CLI wrapper)
 All commands below run from repository root and return JSON.
@@ -219,6 +212,9 @@ The `review` command returns a deterministic JSON object with:
 Schema:
 
 - `config/regression/review-output.schema.json`
+
+For `generate_code_review_report` output:
+
 - `config/regression/code-review-output.schema.json`
 
 Example (shape only):

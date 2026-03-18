@@ -12,6 +12,7 @@
 - When no specs are selected for impacted changes, Cypress execution is skipped intentionally (no implicit full-suite fallback).
 - The structured review contract now includes mapping and suite-generation details for end-to-end traceability.
 - Added a dedicated deterministic code-review workflow (`generate_code_review_report`) with separate orchestration and output schema for pre-merge gating.
+- Unified Claude invocation on a single command (`/bobthetester`) that runs both deterministic workflows on the same input scope.
 
 ## 1) Concise architecture summary
 - **Orchestrator (reasoning layer)**: decides *why* a flow is relevant, calls MCP tools in sequence, and produces the final regression review narrative.

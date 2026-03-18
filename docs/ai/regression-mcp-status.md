@@ -30,6 +30,8 @@
 - Skip Cypress execution when no specs are selected, to avoid implicit full-suite runs and preserve deterministic local behavior.
 - Add a dedicated deterministic code-review gate (`generate_code_review_report`) separated from the regression gate.
 - Keep code-review checks static and policy-driven via `config/regression/code-review-policy.json`.
+- Keep a single Claude entrypoint (`/bobthetester`) that runs regression + code-review checks on the same scope.
+- Keep merge decisions human-driven: no auto-merge feature is part of this workflow.
 
 ## Progress log
 - Scaffolded `tools/regression-mcp/` TypeScript package with MCP server bootstrap and tool registry.
@@ -96,9 +98,12 @@
 - Added dedicated code-review policy, output schema, and orchestration contract:
   - `config/regression/code-review-policy.json`
   - `config/regression/code-review-output.schema.json`
-  - `config/regression/code-review-agent-orchestration.json`
-- Added dedicated slash command `.claude/commands/bobcodereview.md` and CLI command `npm run code-review`.
-- Updated docs and quickstart to document separate regression and code-review pre-merge gates.
+- Unified slash-command invocation on `.claude/commands/bobthetester.md` for both deterministic workflows.
+- Kept CLI command `npm run code-review` for explicit local/CI invocation when needed.
+- Updated docs and quickstart to document unified slash command invocation with both pre-merge gates.
+- Removed standalone `.claude/commands/bobcodereview.md` to avoid split command paths.
+- Updated unified orchestration contract to include both deterministic gates directly in `config/regression/tiware-agent-orchestration.json`.
+- Added a Mermaid end-to-end diagram to `README.md` and clarified that output supports human merge decisions without auto-merge execution.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -171,9 +176,14 @@
 - `npm run build` -> pass (post code-review tool implementation).
 - `npm run tool -- generate_code_review_report '{}'` -> pass (structured findings/risk output generated).
 - `npm run code-review -- '{"changedFiles":["tools/regression-mcp/src/review.ts"],"baseRef":"HEAD~1","headRef":"HEAD","includeUntracked":false}'` -> pass (`riskLevel: low` for sample single-file run).
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-policy.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-agent-orchestration.json','utf8')); console.log('code-review-json-ok');"` -> pass.
+- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-policy.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('code-review-json-ok');"` -> pass.
 - `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('generate_code_review_report'));});"` -> pass (`true`).
 - `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (regression one-shot still valid after code-review additions).
+- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (single command shared-scope smoke input).
+- `npm run typecheck && npm run build` -> pass (post single-entrypoint slash-command consolidation).
+- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (unified command regression subflow smoke check).
+- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (unified command code-review subflow smoke check).
+- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); console.log('orchestration-json-ok');"` -> pass.
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.
@@ -204,7 +214,7 @@
   - `npm run start`
   - `npm run tool -- <tool_name> '<json_input>'`
   - `npm run review -- '<json_input>'` (one-shot: mapping + suite generation + suite validation + local Cypress run)
-  - `npm run code-review -- '<json_input>'` (separate deterministic code-review gate)
+  - `npm run code-review -- '<json_input>'` (optional explicit run of deterministic code-review report)
   - if selected specs are empty, Cypress run is skipped by design (no full-suite fallback)
 
 ## Likely commands to run
