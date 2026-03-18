@@ -96,24 +96,24 @@ Comportamento atteso:
 
 ```mermaid
 flowchart TD
-  A[Invoke /bobthetester] --> B[Normalize shared input\nbaseRef/headRef/changedFiles/includeUntracked]
-  B --> C[read_business_review_policy]
-  C --> D[generate_regression_review]
-  C --> E[generate_code_review_report]
+  A["Invoke /bobthetester"] --> B["Normalize shared input<br/>baseRef, headRef, changedFiles, includeUntracked"]
+  B --> C["read_business_review_policy"]
+  C --> D["generate_regression_review"]
+  C --> E["generate_code_review_report"]
 
-  D --> D1[map_impacted_flows]
-  D1 --> D2[generate_cypress_suite + validate_cypress_suite]
-  D2 --> D3[list_relevant_cypress_specs]
-  D3 --> D4{selectedSpecs empty?}
-  D4 -- no --> D5[run_cypress + read_cypress_report + collect_artifacts]
-  D4 -- yes --> D6[skip Cypress deterministically]
-  D5 --> F[regression riskLevel]
+  D --> D1["map_impacted_flows"]
+  D1 --> D2["generate_cypress_suite and validate_cypress_suite"]
+  D2 --> D3["list_relevant_cypress_specs"]
+  D3 --> D4{"selectedSpecs is empty?"}
+  D4 -- "no" --> D5["run_cypress, read_cypress_report, collect_artifacts"]
+  D4 -- "yes" --> D6["skip Cypress deterministically"]
+  D5 --> F["regressionRiskLevel"]
   D6 --> F
 
-  E --> G[deterministic code-review findings + riskLevel]
-  F --> H[overallRiskLevel = max(regression, code-review)]
+  E --> G["codeReviewRiskLevel and deterministic findings"]
+  F --> H["overallRiskLevel from highest risk"]
   G --> H
-  H --> I[combined output for human decision\nno auto-merge action]
+  H --> I["combined output for human decision<br/>no auto-merge action"]
 ```
 
 ## Esecuzione manuale (senza slash command)
