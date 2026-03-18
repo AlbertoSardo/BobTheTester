@@ -1,257 +1,49 @@
 # Regression MCP Status
 
 ## Current milestone
-- `milestone-7 (completed)`
+- `milestone-9 (completed): post-migration documentation hardening and final validation`
 
 ## Decisions made
-- Keep MCP tool layer deterministic and data-oriented; no business reasoning in tool implementations.
-- Keep flow inference inspectable via static JSON mappings (`changed files -> flows -> Cypress specs`).
-- Prefer TypeScript for new Node-based MCP tooling unless repository conventions indicate otherwise.
-- Treat Cypress as the UI regression execution engine.
-- Produce a structured review payload that separates: regressions found, artifacts, and missing-test suggestions.
-- Start with a standalone scoped package at `tools/regression-mcp/` because no existing package/workspace convention is discoverable.
-- Keep milestone-1 execution support safe-by-default (`run_cypress` supports deterministic dry-run and explicit opt-in execution).
-- Use `@modelcontextprotocol/sdk` for stdio MCP server wiring to avoid custom protocol glue.
-- Keep all mapping/report/artifact settings explicit under `config/regression/*.json`.
-- Use a local Cypress installation under `tools/regression-mcp` and invoke it from repo root with `npm exec --prefix tools/regression-mcp -- cypress ...`.
-- Standardize machine-readable report parsing on JSON reporter output in milestone-2.
-- Use a root-level CommonJS Cypress config (`cypress.config.cjs`) so Cypress can load config without requiring root package dependencies.
-- Use `.cy.js` smoke specs for flow placeholders to avoid requiring root TypeScript setup.
-- Add deterministic CLI wrappers (`tool`, `review`) so developers and CI can invoke workflow steps without a custom MCP client.
-- Standardize a structured regression review JSON contract and schema at `config/regression/review-output.schema.json`.
-- Keep CI integration minimal by documenting a targeted command path, since no CI workflow exists in this repository snapshot.
-- Add a dedicated Claude/TIware agent skeleton config so orchestration intent is explicit and versioned in-repo.
-- Add a versioned business policy file and expose it via MCP tool so conceptual review criteria remain explicit and auditable.
-- Add repo-native `/bobthetester` slash command scaffold for Claude so users can trigger the workflow with one command.
-- Provide a one-command bootstrap script (`scripts/setup-bobthetester.sh`) to minimize manual MCP setup friction from GitHub clone.
-- Make Cypress suite generation a plugin-agent responsibility (deterministic tool) instead of a manual assistant step.
-- Enforce suite completeness with a deterministic `validate_cypress_suite` gate before final regression review output.
-- Make `generate_regression_review` the end-to-end deterministic entrypoint that includes impacted-flow suite generation and suite validation.
-- Skip Cypress execution when no specs are selected, to avoid implicit full-suite runs and preserve deterministic local behavior.
-- Add a dedicated deterministic code-review gate (`generate_code_review_report`) separated from the regression gate.
-- Keep code-review checks static and policy-driven via `config/regression/code-review-policy.json`.
-- Keep a single Claude entrypoint (`/bobthetester`) that runs regression + code-review checks on the same scope.
-- Keep merge decisions human-driven: no auto-merge feature is part of this workflow.
-- Use deterministic one-shot `generate_unified_review` as the primary combined output contract for `/bobthetester`.
+- Keep MCP tools deterministic and side-effect scoped; no business reasoning inside tools.
+- Keep static, inspectable JSON mapping from changed files to business flows to Playwright specs.
+- Keep Playwright as the single regression execution engine.
+- Keep one slash command entrypoint, `/bobthetester`, backed by deterministic `generate_unified_review`.
+- Keep merge decisions human-driven; no auto-merge capability.
 
 ## Progress log
-- Scaffolded `tools/regression-mcp/` TypeScript package with MCP server bootstrap and tool registry.
-- Added deterministic tool handlers for all required tool names, with typed responses.
-- Added initial static config files:
-  - `config/regression/flow-map.json`
-  - `config/regression/flow-spec-map.json`
-  - `config/regression/tooling.json`
-- Added TODO stub behavior where full parsing support is deferred (`read_cypress_report` for non-JSON formats).
-- Validation completed for milestone-1 package scaffold (`npm run typecheck`, `npm run build`, module import smoke test).
-- Tool-level smoke checks completed for all required tool handlers against seed config and empty-artifact environment.
-- Milestone-2 kickoff: scanned repository for Cypress config/specs/dependency and found none.
-- Proceeding with minimal Cypress bootstrap for deterministic MCP-driven selective execution.
-- Added business-flow mapping for `user-onboarding`, `user-offboarding`, `profile-edit`, and `permission-change`.
-- Added minimal Cypress project bootstrap at repo root (`cypress.config.cjs`, `cypress/e2e/flows/*.cy.js`).
-- Updated MCP tooling to emit and parse JSON report output and to collect failure-oriented artifacts.
-- Added `docs/flows/test-mapping.json` as a human-readable flow-to-spec mapping mirror.
-- Executed real Cypress runs through `run_cypress` with both pass and forced-fail scenarios to validate report parsing and artifact collection paths.
-- Cleaned generated runtime artifacts after validation (`artifacts/cypress/*`, `cypress/screenshots/*`, `cypress/videos/*`).
-- Resolved Cypress bootstrap issues encountered during validation:
-  - replaced `cypress.config.ts` with `cypress.config.cjs` to avoid root dependency resolution issues;
-  - switched placeholder specs from `.cy.ts` to `.cy.js` to avoid requiring root TypeScript setup.
-- Milestone-3 hardening completed:
-  - added `tools/regression-mcp/src/review.ts` deterministic orchestrator for structured review output;
-  - added `tools/regression-mcp/src/cli.ts` for tool-by-tool and end-to-end invocation;
-  - added `config/regression/review-output.schema.json` schema;
-  - documented server startup, tool invocation, mapping config, local targeted runs, and output interpretation in `docs/ai/regression-mcp-usage.md`;
-  - fixed `run_cypress` report extraction to aggregate multi-spec JSON reporter output;
-  - fixed `run_cypress` dry-run mode to avoid deleting existing report artifacts;
-  - fixed `review` dry-run mode to avoid reusing stale report/artifact data from previous runs.
-- Cleaned generated validation artifacts after milestone-3 checks (`artifacts/cypress/results.json`, `cypress/videos/*.mp4`).
-- Added TIware/Claude agent skeleton assets:
-  - `config/regression/tiware-agent-orchestration.json`
-  - `docs/ai/tiware-claude-agent.md`
-  - `generate_regression_review` MCP tool exposure in registry for one-shot orchestration.
-- Updated docs with direct usage for `generate_regression_review` in `docs/ai/regression-mcp-usage.md`.
-- Added `config/regression/business-review-policy.json` and wired orchestration to load it before regression review execution.
-- Exposed `read_business_review_policy` as a deterministic MCP tool.
-- Added first version of conceptual review criteria per flow, intended for product review with Giuseppe.
-- Updated docs with `read_business_review_policy` usage and Claude policy-first prompt guidance.
-- Added `.claude/commands/bobthetester.md` to make slash invocation deterministic and reusable.
-- Added GitHub-first onboarding docs in `docs/ai/bobthetester-quickstart.md`.
-- Added MCP config template for Claude in `config/regression/claude-mcp-server.example.json`.
-- Revalidated slash-command rollout with dry-run review and no artifact side effects.
-- Added bootstrap automation script at `scripts/setup-bobthetester.sh`.
-- Added package alias `npm run setup:bobthetester` in `tools/regression-mcp/package.json`.
-- Updated setup docs to default to one-command bootstrap path.
-- Validated bootstrap script with safe flags and with package-level alias.
-- Added deterministic `generate_cypress_suite` tool to create/update flow specs from business policy minimum coverage.
-- Updated `/bobthetester` command contract to call `generate_cypress_suite` before `generate_regression_review`.
-- Updated orchestration config workflow to include suite generation step.
-- Expanded flow specs to policy-driven baseline suite coverage (4 tests per flow in current template).
-- Cleaned generated runtime artifacts after full-suite validation (`artifacts/cypress/results.json`, `cypress/videos/*.mp4`).
-- Added deterministic `validate_cypress_suite` tool to compare business-policy required scenarios against mapped spec coverage.
-- Updated review orchestration to include suite completeness in output and keep risk at least `high` when suite coverage is incomplete.
-- Validated quality-gate flow with direct tool invocation and dry-run orchestration check.
-- Added root-level `README.md` with install/setup instructions, Claude MCP config options, and full end-to-end workflow documentation.
-- Updated `generate_regression_review` to generate/update suite for impacted flows before selecting specs and running Cypress.
-- Extended structured review output with `mapping` and `suiteGeneration` sections for end-to-end traceability.
-- Updated runtime behavior to skip report/artifact reads whenever Cypress execution is skipped (dry-run or empty selected specs).
-- Updated `/bobthetester` command contract to emit comprehensive JSON output first and rely on review one-shot workflow.
-- Updated orchestration config contract so suite completeness gate reads from `generate_regression_review` output.
-- Added deterministic `generate_code_review_report` MCP tool with structured findings (`sensitive-path`, `added-line-check`, `diff-size`).
-- Added dedicated code-review policy, output schema, and orchestration contract:
-  - `config/regression/code-review-policy.json`
-  - `config/regression/code-review-output.schema.json`
-- Unified slash-command invocation on `.claude/commands/bobthetester.md` for both deterministic workflows.
-- Kept CLI command `npm run code-review` for explicit local/CI invocation when needed.
-- Updated docs and quickstart to document unified slash command invocation with both pre-merge gates.
-- Removed standalone `.claude/commands/bobcodereview.md` to avoid split command paths.
-- Updated unified orchestration contract to include both deterministic gates directly in `config/regression/tiware-agent-orchestration.json`.
-- Added a Mermaid end-to-end diagram to `README.md` and clarified that output supports human merge decisions without auto-merge execution.
-- Simplified the README Mermaid flow into a beginner-friendly step-by-step diagram and added plain-language explanation for each step.
-- Added deterministic `generate_unified_review` tool and CLI command (`npm run unified-review`) to produce one combined report contract.
-- Added `config/regression/unified-review-output.schema.json` as the canonical schema for unified slash-command output.
-- Updated `/bobthetester` command contract to call `generate_unified_review` directly.
-- Updated docs and orchestration to use unified quality-gate fields from the combined output.
+- Scaffolded and hardened `tools/regression-mcp/` as a standalone TypeScript MCP package.
+- Implemented required deterministic tools and unified orchestration outputs for regression + code review.
+- Completed clean-cut Playwright migration:
+  - tool contracts moved to `*_playwright_*` naming,
+  - flow specs moved to `playwright/e2e/flows/*.spec.ts`,
+  - output contract now uses `runnerStatus`.
+- Added deterministic suite generation and validation gates before execution.
+- Updated command/docs wiring so `/bobthetester` maps to unified deterministic output.
+- Removed legacy runner artifacts and updated ignore/runtime setup for Playwright.
+- Normalized plan/status docs to Playwright-only terminology and aligned milestone/validation records with current execution paths.
 
 ## Latest validation snapshot
-- `npm run typecheck` -> pass.
-- `npm run build` -> pass.
-- `node -e "import('./dist/server.js')..."` -> pass.
-- `node -e "import('./dist/tools/map-impacted-flows.js')..."` -> pass.
-- `node -e "import('./dist/tools/list-relevant-cypress-specs.js')..."` -> pass.
-- `node -e "import('./dist/tools/get-changed-files.js')..."` -> pass (non-git warning path).
-- `node -e "import('./dist/tools/run-cypress.js')..."` -> pass (dry-run path).
-- `node -e "import('./dist/tools/read-cypress-report.js')..."` -> pass (missing report path).
-- `node -e "import('./dist/tools/collect-artifacts.js')..."` -> pass (missing directories path).
-- `node -e "import('./dist/tools/suggest-missing-tests.js')..."` -> pass.
-- `npm ls cypress --depth=0` -> Cypress missing before milestone-2 install.
-- `npm install` -> pass, installed Cypress 14.5.4.
-- `npm exec --prefix tools/regression-mcp -- cypress --version` -> pass.
-- `node -e "import('./dist/tools/run-cypress.js')...dryRun:false..."` -> pass/fail scenarios executed successfully.
-- `node -e "import('./dist/tools/read-cypress-report.js')..."` -> pass, parses JSON totals/failures.
-- `node -e "import('./dist/tools/collect-artifacts.js')..."` -> pass, returns screenshots/videos/report paths.
-- `npm run tool -- map_impacted_flows '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"]}'` -> pass.
-- `npm run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":true}'` -> pass.
-- `npm run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'` -> pass (real Cypress run, 2 tests passed).
-- `npm run tool -- get_changed_files '{"includeUntracked":true}'` -> pass (expected non-git warning path).
-- `npm run tool -- list_relevant_cypress_specs '{"impactedFlowIds":["user-offboarding","permission-change"]}'` -> pass.
-- `npm run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-offboarding.cy.js"],"dryRun":true}'` -> pass.
-- `npm run tool -- read_cypress_report '{}'` -> pass.
-- `npm run tool -- collect_artifacts '{}'` -> pass.
-- `npm run tool -- suggest_missing_tests '{"impactedFlowIds":["profile-edit","billing-flow"],"unmappedFiles":["src/billing/invoice.ts"]}'` -> pass.
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('../../config/regression/review-output.schema.json','utf8')); console.log('schema-ok');"` -> pass.
-- `npm run review -- '{"changedFiles":["src/features/profile-edit/form.ts"],"dryRun":false,"browser":"electron"}'` -> pass (real Cypress run, 1 test passed).
-- `npm run review -- '{"changedFiles":["src/features/profile-edit/form.ts"],"dryRun":true}'` -> pass (returns skipped status with stale-data protection warnings).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass.
-- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.some(t=>t.name==='generate_regression_review'));})..."` -> pass.
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('../../config/regression/tiware-agent-orchestration.json','utf8')); console.log('orchestration-schema-ok');"` -> pass.
-- `npm run typecheck && npm run build` -> pass (after adding policy tool).
-- `npm run tool -- read_business_review_policy '{}'` -> pass.
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/permission-change/policy.ts"],"dryRun":true}'` -> pass.
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('../../config/regression/business-review-policy.json','utf8')); JSON.parse(fs.readFileSync('../../config/regression/tiware-agent-orchestration.json','utf8')); console.log('policy-json-ok');"` -> pass.
-- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('read_business_review_policy'));})..."` -> pass.
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('../../config/regression/claude-mcp-server.example.json','utf8')); console.log('claude-config-template-ok');"` -> pass.
-- `npm run typecheck && npm run build` -> pass (post slash-command/docs updates).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass.
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('config/regression/claude-mcp-server.example.json','utf8')); console.log('claude-config-template-ok');"` -> pass.
-- `npm run typecheck && npm run build` -> pass (post setup script/docs updates).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (post setup script/docs updates).
-- `bash -n "scripts/setup-bobthetester.sh"` -> pass.
-- `./scripts/setup-bobthetester.sh --skip-install --skip-build --write-desktop-config --desktop-config-path /tmp/claude_desktop_config.bobthetester.json` -> pass.
-- `npm run setup:bobthetester -- --skip-install --skip-build --write-desktop-config --desktop-config-path /tmp/claude_desktop_config.bobthetester.alias.json` -> pass.
-- `npm run setup:bobthetester -- --help` -> pass.
-- `npm run typecheck` -> pass (after adding `generate_cypress_suite`).
-- `npm run build` -> pass (after adding `generate_cypress_suite`).
-- `npm run suite -- '{}'` -> pass (updated all four flow specs with policy-driven coverage tests).
-- `npm run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-onboarding.cy.js","cypress/e2e/flows/user-offboarding.cy.js","cypress/e2e/flows/profile-edit.cy.js","cypress/e2e/flows/permission-change.cy.js"],"dryRun":false,"browser":"electron"}'` -> pass (16 tests passed).
-- `npm run tool -- read_cypress_report '{}'` -> pass (16 passed / 0 failed).
-- `npm run tool -- collect_artifacts '{}'` -> pass (4 videos, report path).
-- `npm run typecheck && npm run build` -> pass (post suite-completeness gate checks).
-- `npm run suite:check -- '{}'` -> pass (`isComplete: true` across all mapped flows).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (suite completeness included, no stale artifact reuse).
-- `npm run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-onboarding.cy.js"],"dryRun":false,"browser":"electron"}'` -> pass (4 passed / 0 failed).
-- `npm run tool -- read_cypress_report '{}'` -> pass (parsed 4 passed / 0 failed).
-- `npm run tool -- collect_artifacts '{}'` -> pass (video and report paths returned).
-- `npm run typecheck` -> pass (post root README end-to-end documentation update).
-- `npm run typecheck` -> pass (post one-shot review workflow updates).
-- `npm run build` -> pass (post one-shot review workflow updates).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'` -> pass (4 passed / 0 failed, includes mapping + suiteGeneration sections).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/experimental/new-widget.ts"],"dryRun":false,"browser":"electron"}'` -> pass (`cypressStatus: skipped`, no implicit full-suite run).
-- `npm run tool -- run_cypress '{"specs":[],"dryRun":false,"browser":"electron"}'` -> pass (`status: skipped`, deterministic empty-spec behavior).
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('schema-json-ok');"` -> pass.
-- `npm run typecheck && npm run build` -> pass (final verification after docs and orchestration contract updates).
-- `npm run typecheck` -> pass (post code-review tool implementation).
-- `npm run build` -> pass (post code-review tool implementation).
-- `npm run tool -- generate_code_review_report '{}'` -> pass (structured findings/risk output generated).
-- `npm run code-review -- '{"changedFiles":["tools/regression-mcp/src/review.ts"],"baseRef":"HEAD~1","headRef":"HEAD","includeUntracked":false}'` -> pass (`riskLevel: low` for sample single-file run).
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-policy.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('code-review-json-ok');"` -> pass.
-- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('generate_code_review_report'));});"` -> pass (`true`).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (regression one-shot still valid after code-review additions).
-- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (single command shared-scope smoke input).
-- `npm run typecheck && npm run build` -> pass (post single-entrypoint slash-command consolidation).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (unified command regression subflow smoke check).
-- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (unified command code-review subflow smoke check).
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); console.log('orchestration-json-ok');"` -> pass.
-- `npm run typecheck` -> pass (post README Mermaid simplification and step-by-step explanation update).
-- `npm run typecheck` -> pass (post `generate_unified_review` implementation and contract wiring).
-- `npm run build` -> pass (post `generate_unified_review` implementation and contract wiring).
-- `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (combined output includes regressionReview + codeReview + overallRiskLevel).
-- `npm run tool -- generate_unified_review '{"changedFiles":["src/experimental/new-widget.ts"],"dryRun":false,"includeUntracked":false}'` -> pass (`regressionReview.passFailSummary.cypressStatus: skipped`, deterministic no-full-suite behavior preserved).
-- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (backward-compat regression tool check).
-- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (backward-compat code-review tool check).
-- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/unified-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('unified-schema-ok');"` -> pass.
-- `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'` -> pass (`overallRiskLevel: low`, 4 Cypress tests passed).
-- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('generate_unified_review'));});"` -> pass (`true`).
+- Run from `tools/regression-mcp/`:
+  - `npm run typecheck && npm run build` -> pass.
+  - `npm run suite:check -- '{}'` -> pass (`isComplete: true`, no incomplete flows).
+  - `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true,"browser":"chromium"}'` -> pass (`overallRiskLevel: medium`, `combinedGatePassed: true`, runner skipped by dry-run policy).
+  - `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}'` -> pass (`overallRiskLevel: low`, `combinedGatePassed: true`, Playwright `4 passed / 0 failed`).
 
-## Open questions inferred from repository scan
-- Root-level package/build/test conventions are not yet discoverable.
-- Product application source tree is still not present; current Cypress specs are placeholder flow smoke tests.
-- No CI workflow configuration is currently present in this workspace snapshot.
-- No existing flow taxonomy source of truth is currently present beyond initial seed mappings.
-- Should this package remain standalone, or be moved into a future monorepo workspace if one is introduced?
-- Should review JSON schema validation be enforced in CI (once CI exists), or remain a documentation contract only?
-- Finalize business policy owner and review cadence (Giuseppe proposed in meeting notes).
-- Confirm Claude client target (Claude Desktop vs Claude Code) and final location for MCP config file on each developer machine.
-- Confirm if bootstrap script should support additional Claude config paths by default (Linux/Windows variants).
-- Decide whether `--write-desktop-config` should become default-on in trusted local environments.
-- Confirm policy ownership for approving generated coverage scenarios per flow.
-
-## How to run the new tooling (planned)
-- Install and validate package:
-  - `npm install`
-  - `npm run typecheck`
-  - `npm run build`
-- Start MCP server over stdio:
-  - `npm run start`
-
-## How to run the new tooling (current milestone output)
+## How to run the tooling
 - From `tools/regression-mcp/`:
   - `npm install`
   - `npm run typecheck`
   - `npm run build`
   - `npm run start`
   - `npm run tool -- <tool_name> '<json_input>'`
-  - `npm run unified-review -- '<json_input>'` (primary one-shot combined contract used by `/bobthetester`)
-  - `npm run review -- '<json_input>'` (one-shot: mapping + suite generation + suite validation + local Cypress run)
-  - `npm run code-review -- '<json_input>'` (optional explicit run of deterministic code-review report)
-  - if selected specs are empty, Cypress run is skipped by design (no full-suite fallback)
-
-## Likely commands to run
-- `npm install`
-- `npm run typecheck`
-- `npm run build`
-- `npm run start`
-- `npm run tool -- map_impacted_flows '{"changedFiles":["src/settings/profile/form.ts"]}'`
-- `npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'`
+  - `npm run unified-review -- '<json_input>'`
+  - `npm run review -- '<json_input>'`
+  - `npm run code-review -- '<json_input>'`
+- Regression execution is intentionally skipped when selected specs are empty.
 
 ## Known gaps
-- Root-level repository conventions (workspace/package manager/CI) are still not discoverable in this workspace snapshot.
-- `read_cypress_report` is fully implemented for JSON format; JUnit/text parsing remains a typed TODO stub.
-- `run_cypress` is implemented and validated locally, but end-to-end business coverage depends on real app flows/specs.
-- Need initial business-flow mapping ownership and review process.
-- Need formal approval workflow for `config/regression/business-review-policy.json` updates.
-- Slash command execution still depends on local Claude setup loading `.claude/commands` and MCP config correctly.
-- Auto-merge mode currently targets Claude Desktop JSON config style; other clients may need different config adapters.
-- Generated Cypress tests are deterministic placeholders until real app-aware assertions are introduced.
-- Full business-realistic suite completeness still requires wiring real app setup, fixtures, and domain assertions.
-- Need CI artifact policy (retention and naming) for screenshots/videos/reports.
-- No CI pipeline file exists yet, so CI integration is currently documented but not committed as executable workflow.
-- Added-line code-review checks currently target common source-code extensions only; extension policy may need tuning per repository stack.
+- Root-level workspace and CI conventions are still not fully discoverable in this repository snapshot.
+- Current Playwright flow specs are deterministic placeholders until real app fixtures/assertions are integrated.
+- `read_playwright_report` is fully implemented for JSON; JUnit/line parser modes remain typed TODO stubs.
+- CI artifact retention and naming policy are documented but not yet enforced by a committed CI pipeline.
+- Code-review extension policy may need refinement for non-standard stacks.
