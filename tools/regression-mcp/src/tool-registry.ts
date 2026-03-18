@@ -7,6 +7,7 @@ import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
 import { readBusinessReviewPolicy } from "./tools/read-business-review-policy.js";
 import { readCypressReport } from "./tools/read-cypress-report.js";
 import { generateRegressionReview } from "./review.js";
+import { generateUnifiedReview } from "./unified-review.js";
 import { runCypress } from "./tools/run-cypress.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
 import { validateCypressSuite } from "./tools/validate-cypress-suite.js";
@@ -24,6 +25,7 @@ import type {
   RunCypressInput,
   SuggestMissingTestsInput,
   ToolName,
+  UnifiedReviewInput,
   ValidateCypressSuiteInput,
 } from "./types.js";
 
@@ -219,6 +221,38 @@ function toRegressionReviewInput(input: Record<string, unknown>): RegressionRevi
     includeUntracked: readOptionalBoolean(input, "includeUntracked"),
     changedFiles: readOptionalStringArray(input, "changedFiles"),
     policyPath: readOptionalString(input, "policyPath"),
+    flowMapPath: readOptionalString(input, "flowMapPath"),
+    flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
+    dryRun: readOptionalBoolean(input, "dryRun"),
+    headed: readOptionalBoolean(input, "headed"),
+    browser: readOptionalString(input, "browser"),
+    configFile: readOptionalString(input, "configFile"),
+    reportPath: readOptionalString(input, "reportPath"),
+    reportFormat,
+    extraArgs: readOptionalStringArray(input, "extraArgs"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
+function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInput {
+  const reportFormat = readOptionalString(input, "reportFormat");
+  if (
+    typeof reportFormat !== "undefined" &&
+    reportFormat !== "json" &&
+    reportFormat !== "junit" &&
+    reportFormat !== "text"
+  ) {
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, text.");
+  }
+
+  return {
+    baseRef: readOptionalString(input, "baseRef"),
+    headRef: readOptionalString(input, "headRef"),
+    includeUntracked: readOptionalBoolean(input, "includeUntracked"),
+    changedFiles: readOptionalStringArray(input, "changedFiles"),
+    policyPath: readOptionalString(input, "policyPath"),
+    regressionPolicyPath: readOptionalString(input, "regressionPolicyPath"),
+    codeReviewPolicyPath: readOptionalString(input, "codeReviewPolicyPath"),
     flowMapPath: readOptionalString(input, "flowMapPath"),
     flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
     dryRun: readOptionalBoolean(input, "dryRun"),
@@ -473,6 +507,43 @@ export const registeredTools: RegisteredTool[] = [
       additionalProperties: false,
     },
     handler: async (input) => generateRegressionReview(toRegressionReviewInput(input)),
+  },
+  {
+    name: "generate_unified_review",
+    description: "Runs regression and code-review tools and returns one deterministic combined report.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        baseRef: { type: "string" },
+        headRef: { type: "string" },
+        includeUntracked: { type: "boolean" },
+        changedFiles: {
+          type: "array",
+          items: { type: "string" },
+        },
+        policyPath: { type: "string" },
+        regressionPolicyPath: { type: "string" },
+        codeReviewPolicyPath: { type: "string" },
+        flowMapPath: { type: "string" },
+        flowSpecMapPath: { type: "string" },
+        dryRun: { type: "boolean" },
+        headed: { type: "boolean" },
+        browser: { type: "string" },
+        configFile: { type: "string" },
+        reportPath: { type: "string" },
+        reportFormat: {
+          type: "string",
+          enum: ["json", "junit", "text"],
+        },
+        extraArgs: {
+          type: "array",
+          items: { type: "string" },
+        },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => generateUnifiedReview(toUnifiedReviewInput(input)),
   },
 ];
 

@@ -10,6 +10,7 @@ export type ToolName =
   | "suggest_missing_tests"
   | "read_business_review_policy"
   | "generate_code_review_report"
+  | "generate_unified_review"
   | "generate_regression_review";
 
 export type JsonValue =
@@ -403,4 +404,33 @@ export interface RegressionReviewOutput {
     durationMs: number;
   };
   warnings: string[];
+}
+
+export interface UnifiedReviewInput extends RegressionReviewInput {
+  regressionPolicyPath?: string;
+  codeReviewPolicyPath?: string;
+}
+
+export interface UnifiedReviewOutput extends BaseToolResponse {
+  tool: "generate_unified_review";
+  version: number;
+  generatedAt: string;
+  repoRoot: string;
+  inputs: {
+    baseRef?: string;
+    headRef?: string;
+    includeUntracked: boolean;
+    changedFiles: string[];
+    dryRun: boolean;
+  };
+  regressionReview: RegressionReviewOutput;
+  codeReview: CodeReviewReportOutput;
+  overallRiskLevel: RiskLevel;
+  overallRecommendedActions: string[];
+  qualityGates: {
+    suiteCompletenessGatePassed: boolean;
+    codeReviewRiskGatePassed: boolean;
+    regressionRiskGatePassed: boolean;
+    combinedGatePassed: boolean;
+  };
 }

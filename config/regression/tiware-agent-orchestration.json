@@ -40,32 +40,34 @@
     },
     {
       "step": 1,
-      "tool": "generate_regression_review",
-      "purpose": "produce deterministic impacted flows, mapping details, targeted suite generation/validation, execution summary, artifacts, and risk"
-    },
-    {
-      "step": 2,
-      "tool": "generate_code_review_report",
-      "purpose": "produce deterministic code-quality/security/change-size findings and a merge risk level"
+      "tool": "generate_unified_review",
+      "purpose": "produce one deterministic combined output that includes regression execution, code-review findings, and overall risk"
     }
   ],
   "qualityGates": [
     {
       "name": "suite-completeness",
-      "tool": "generate_regression_review",
+      "tool": "generate_unified_review",
       "required": true,
-      "condition": "suiteCompleteness.isComplete == true"
+      "condition": "qualityGates.suiteCompletenessGatePassed == true"
     },
     {
       "name": "code-review-risk",
-      "tool": "generate_code_review_report",
+      "tool": "generate_unified_review",
       "required": true,
-      "condition": "riskLevel != 'high' && riskLevel != 'critical'"
+      "condition": "qualityGates.codeReviewRiskGatePassed == true"
+    },
+    {
+      "name": "overall-risk",
+      "tool": "generate_unified_review",
+      "required": true,
+      "condition": "overallRiskLevel != 'high' && overallRiskLevel != 'critical'"
     }
   ],
   "structuredOutput": {
-    "requiredSchema": "config/regression/review-output.schema.json",
-    "secondaryRequiredSchema": "config/regression/code-review-output.schema.json",
+    "requiredSchema": "config/regression/unified-review-output.schema.json",
+    "secondaryRequiredSchema": "config/regression/review-output.schema.json",
+    "tertiaryRequiredSchema": "config/regression/code-review-output.schema.json",
     "requiredSections": [
       "technical_findings",
       "product_flow_findings",
@@ -79,7 +81,6 @@
   "defaultToolInput": {
     "includeUntracked": true,
     "dryRun": false,
-    "browser": "electron",
-    "updateMapping": true
+    "browser": "electron"
   }
 }

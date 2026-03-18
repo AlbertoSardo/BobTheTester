@@ -53,8 +53,8 @@ Examples:
 
 Behavior:
 - loads conceptual policy with `read_business_review_policy`
-- runs deterministic one-shot pipeline with `generate_regression_review` (mapping, suite generation, suite validation, targeted Cypress execution)
-- runs deterministic `generate_code_review_report` on the same change scope
+- runs deterministic one-shot pipeline with `generate_unified_review` on one shared scope
+- includes full `generate_regression_review` and `generate_code_review_report` outputs in one JSON
 - skips Cypress execution when no impacted specs are selected (no implicit full-suite fallback)
 - asks targeted questions only if required context is missing
 
@@ -66,6 +66,8 @@ npm --prefix tools/regression-mcp run suite -- '{}'
 
 ## 4) What you get
 Structured output with:
+- unified review payload (`regressionReview` + `codeReview`)
+- overall risk and quality-gate fields
 - mapping details (`fileToFlows`, `unmappedFiles`)
 - impacted flows
 - suite generation summary

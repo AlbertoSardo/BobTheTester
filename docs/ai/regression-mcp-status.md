@@ -1,7 +1,7 @@
 # Regression MCP Status
 
 ## Current milestone
-- `milestone-6 (completed)`
+- `milestone-7 (completed)`
 
 ## Decisions made
 - Keep MCP tool layer deterministic and data-oriented; no business reasoning in tool implementations.
@@ -32,6 +32,7 @@
 - Keep code-review checks static and policy-driven via `config/regression/code-review-policy.json`.
 - Keep a single Claude entrypoint (`/bobthetester`) that runs regression + code-review checks on the same scope.
 - Keep merge decisions human-driven: no auto-merge feature is part of this workflow.
+- Use deterministic one-shot `generate_unified_review` as the primary combined output contract for `/bobthetester`.
 
 ## Progress log
 - Scaffolded `tools/regression-mcp/` TypeScript package with MCP server bootstrap and tool registry.
@@ -105,6 +106,10 @@
 - Updated unified orchestration contract to include both deterministic gates directly in `config/regression/tiware-agent-orchestration.json`.
 - Added a Mermaid end-to-end diagram to `README.md` and clarified that output supports human merge decisions without auto-merge execution.
 - Simplified the README Mermaid flow into a beginner-friendly step-by-step diagram and added plain-language explanation for each step.
+- Added deterministic `generate_unified_review` tool and CLI command (`npm run unified-review`) to produce one combined report contract.
+- Added `config/regression/unified-review-output.schema.json` as the canonical schema for unified slash-command output.
+- Updated `/bobthetester` command contract to call `generate_unified_review` directly.
+- Updated docs and orchestration to use unified quality-gate fields from the combined output.
 
 ## Latest validation snapshot
 - `npm run typecheck` -> pass.
@@ -186,6 +191,15 @@
 - `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (unified command code-review subflow smoke check).
 - `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/code-review-output.schema.json','utf8')); console.log('orchestration-json-ok');"` -> pass.
 - `npm run typecheck` -> pass (post README Mermaid simplification and step-by-step explanation update).
+- `npm run typecheck` -> pass (post `generate_unified_review` implementation and contract wiring).
+- `npm run build` -> pass (post `generate_unified_review` implementation and contract wiring).
+- `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (combined output includes regressionReview + codeReview + overallRiskLevel).
+- `npm run tool -- generate_unified_review '{"changedFiles":["src/experimental/new-widget.ts"],"dryRun":false,"includeUntracked":false}'` -> pass (`regressionReview.passFailSummary.cypressStatus: skipped`, deterministic no-full-suite behavior preserved).
+- `npm run tool -- generate_regression_review '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":true}'` -> pass (backward-compat regression tool check).
+- `npm run tool -- generate_code_review_report '{"changedFiles":["src/features/user-onboarding/step.ts"],"includeUntracked":false}'` -> pass (backward-compat code-review tool check).
+- `node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/unified-review-output.schema.json','utf8')); JSON.parse(fs.readFileSync('/Users/alberto.sardo/Demo/BobTheTester/config/regression/tiware-agent-orchestration.json','utf8')); console.log('unified-schema-ok');"` -> pass.
+- `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'` -> pass (`overallRiskLevel: low`, 4 Cypress tests passed).
+- `node -e "import('./dist/tool-registry.js').then(({registeredTools})=>{console.log(registeredTools.map(t=>t.name).includes('generate_unified_review'));});"` -> pass (`true`).
 
 ## Open questions inferred from repository scan
 - Root-level package/build/test conventions are not yet discoverable.
@@ -215,6 +229,7 @@
   - `npm run build`
   - `npm run start`
   - `npm run tool -- <tool_name> '<json_input>'`
+  - `npm run unified-review -- '<json_input>'` (primary one-shot combined contract used by `/bobthetester`)
   - `npm run review -- '<json_input>'` (one-shot: mapping + suite generation + suite validation + local Cypress run)
   - `npm run code-review -- '<json_input>'` (optional explicit run of deterministic code-review report)
   - if selected specs are empty, Cypress run is skipped by design (no full-suite fallback)

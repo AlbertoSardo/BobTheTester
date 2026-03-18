@@ -45,8 +45,7 @@ Obiettivo: review tecnica + concettuale (business flow) con non-regression mirat
 
 Regole:
 - Prima di analizzare i risultati, usa `read_business_review_policy` per caricare i criteri concettuali.
-- Usa il tool MCP `generate_regression_review` come entrypoint one-shot (mapping, suite generation, suite validation, run Cypress mirato).
-- Nella stessa esecuzione usa `generate_code_review_report` sullo stesso scope di change set.
+- Usa il tool MCP `generate_unified_review` come entrypoint one-shot (include regression + code-review sullo stesso scope).
 - Se non ci sono spec impattate, mantieni `cypressStatus: skipped` (nessun fallback implicito a full-suite).
 - Se mancano dati essenziali, fai al massimo 3 domande mirate.
 - Se non sei bloccato, non fare domande e procedi.
@@ -73,6 +72,7 @@ Policy concettuale business versionata:
 
 Output strutturato richiesto:
 
+- `config/regression/unified-review-output.schema.json`
 - `config/regression/review-output.schema.json`
 - `config/regression/code-review-output.schema.json`
 
@@ -108,8 +108,8 @@ Uso:
 
 Il comando e` progettato per:
 1. caricare policy concettuale;
-2. eseguire review non-regression one-shot con suite generation/validation incluse;
-3. eseguire anche il gate code review deterministico (`generate_code_review_report`);
+2. eseguire review unificata one-shot (`generate_unified_review`) con suite generation/validation incluse;
+3. includere anche il gate code review deterministico nello stesso output;
 4. evitare run full-suite impliciti quando non ci sono spec selezionate;
 5. fare domande solo se mancano dati bloccanti.
 

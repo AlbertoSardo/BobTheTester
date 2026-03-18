@@ -56,6 +56,14 @@ npm run code-review -- '{"baseRef":"origin/main","headRef":"HEAD"}'
 `code-review` runs deterministic checks from `config/regression/code-review-policy.json` and returns
 structured findings with severity counts, risk level, and recommended actions.
 
+## Generate unified review output (recommended)
+```bash
+npm run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","dryRun":false}'
+```
+
+`unified-review` runs deterministic regression + code-review in one command and returns
+one combined output with `overallRiskLevel`, `qualityGates`, and consolidated actions.
+
 ## Generate/refresh complete Cypress suite from policy
 ```bash
 npm run suite -- '{}'
@@ -73,6 +81,9 @@ Review output format schema:
 Code-review output format schema:
 - `config/regression/code-review-output.schema.json`
 
+Unified output format schema:
+- `config/regression/unified-review-output.schema.json`
+
 ## Full usage documentation
 - `docs/ai/regression-mcp-usage.md`
 
@@ -89,3 +100,4 @@ Code-review output format schema:
 - `read_business_review_policy`
 - `generate_code_review_report`
 - `generate_regression_review`
+- `generate_unified_review`

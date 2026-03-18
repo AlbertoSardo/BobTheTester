@@ -46,9 +46,8 @@ Optional JSON input:
 ```
 
 Default behavior for `/bobthetester` is local execution (`dryRun:false`) unless explicitly overridden.
-The command runs both deterministic pipelines on the same scope:
-- `generate_regression_review`
-- `generate_code_review_report`
+The command runs one deterministic combined tool on the same scope:
+- `generate_unified_review`
 
 ## Invoke each tool locally (deterministic CLI wrapper)
 All commands below run from repository root and return JSON.
@@ -145,6 +144,23 @@ This one-shot command now includes deterministic sub-steps for impacted flows:
 
 If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite run).
 
+### `generate_unified_review`
+```bash
+npm --prefix tools/regression-mcp run tool -- generate_unified_review '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false,"dryRun":false}'
+```
+
+Shortcut command:
+
+```bash
+npm --prefix tools/regression-mcp run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false,"dryRun":false}'
+```
+
+This one-shot combined command returns:
+- full regression review output
+- full code-review output
+- `overallRiskLevel`
+- deterministic quality-gate booleans
+
 ### `generate_code_review_report`
 ```bash
 npm --prefix tools/regression-mcp run tool -- generate_code_review_report '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
@@ -196,7 +212,15 @@ npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headR
 ```
 
 ## Structured review output format
-The `review` command returns a deterministic JSON object with:
+The `unified-review` command returns a deterministic JSON object with:
+
+- `regressionReview`
+- `codeReview`
+- `overallRiskLevel`
+- `overallRecommendedActions`
+- `qualityGates`
+
+The `review` command (regression-only diagnostic path) returns:
 
 - `mapping`
 - `impactedFlows`
@@ -216,6 +240,10 @@ Schema:
 For `generate_code_review_report` output:
 
 - `config/regression/code-review-output.schema.json`
+
+For `generate_unified_review` output:
+
+- `config/regression/unified-review-output.schema.json`
 
 Example (shape only):
 
@@ -284,17 +312,17 @@ For code-review output:
 - `riskLevel=critical`: multiple high-severity findings, or high + multiple medium findings.
 
 ## Minimal CI integration path
-No CI configuration is currently present in this repository snapshot. For CI, run only the targeted regression command as a focused step:
+No CI configuration is currently present in this repository snapshot. For CI, run the unified deterministic command as a focused step:
 
 ```bash
 npm --prefix tools/regression-mcp install
 npm --prefix tools/regression-mcp run build
-npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":true,"dryRun":false}'
+npm --prefix tools/regression-mcp run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":true,"dryRun":false}'
 ```
 
-This keeps the CI path small and deterministic while avoiding broad full-suite runs.
+This keeps the CI path small and deterministic while producing one combined risk output.
 
-For separate PR gates, run both commands as independent checks:
+For diagnostic-only separate gates, run both commands independently:
 
 ```bash
 npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false,"dryRun":false}'

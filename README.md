@@ -81,47 +81,51 @@ Esempi:
 
 Comportamento atteso:
 1. legge policy business (`read_business_review_policy`)
-2. esegue review orchestrata (`generate_regression_review`) che include:
+2. esegue review unificata (`generate_unified_review`) sullo stesso scope di modifica.
+3. nel blocco regression della review unificata esegue:
    - mapping file -> flow,
    - generazione/aggiornamento suite sui flow impattati,
    - validazione completezza,
    - run Cypress locale sulle sole spec selezionate,
    - output finale comprensivo con rischio e azioni.
-3. esegue anche `generate_code_review_report` sullo stesso scope di modifica.
-4. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
-5. produce un risultato unico che combina regression + code-review.
-6. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
+4. nel blocco code-review della review unificata applica regole deterministiche su path sensibili, added lines e dimensione diff.
+5. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
+6. calcola `overallRiskLevel` e quality gates in un output unico.
+7. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
 
 ## Flusso end-to-end (come funziona)
 
 ```mermaid
 flowchart TD
   A["1) Avvio /bobthetester"] --> B["2) Legge policy business"]
-  B --> C["3) Esegue regression review"]
-  B --> D["4) Esegue code review deterministica"]
+  B --> C["3) Esegue generate_unified_review"]
 
-  C --> E{"Spec Cypress selezionate?"}
-  E -- "si" --> F["5) Run Cypress + report + artifact"]
-  E -- "no" --> G["5) Salta Cypress in modo sicuro"]
-  F --> H["6) Calcola riskLevel regression"]
-  G --> H
+  C --> D["4) Regression subflow"]
+  C --> E["5) Code review subflow"]
 
-  D --> I["7) Calcola riskLevel code review"]
-  H --> J["8) Calcola overallRiskLevel"]
-  I --> J
-  J --> K["9) Output finale per decisione umana (no auto-merge)"]
+  D --> F{"Spec Cypress selezionate?"}
+  F -- "si" --> G["6) Run Cypress + report + artifact"]
+  F -- "no" --> H["6) Salta Cypress in modo sicuro"]
+  G --> I["7) Calcola riskLevel regression"]
+  H --> I
+
+  E --> J["8) Calcola riskLevel code review"]
+  I --> K["9) Calcola overallRiskLevel"]
+  J --> K
+  K --> L["10) Output finale per decisione umana (no auto-merge)"]
 ```
 
 Spiegazione semplice degli step:
 1. Avvii `/bobthetester` con file cambiati o con `baseRef/headRef`.
 2. L'agente carica la policy business per sapere cosa controllare.
-3. Parte il flusso regression: mapping flow, suite/check, selezione spec.
-4. In parallelo parte la code review deterministica sullo stesso scope.
-5. Se ci sono spec, esegue Cypress; se non ci sono, lo salta senza full suite implicita.
-6. Calcola il rischio regression dai risultati test/copertura.
-7. Calcola il rischio code review dai finding deterministici.
-8. Combina i due rischi in `overallRiskLevel`.
-9. Restituisce un report unico per aiutare la decisione umana di merge.
+3. Parte un tool unico (`generate_unified_review`) che coordina tutti i check.
+4. Il blocco regression fa mapping flow, suite/check e selezione spec.
+5. In parallelo gira la code review deterministica sullo stesso scope.
+6. Se ci sono spec, esegue Cypress; se non ci sono, lo salta senza full suite implicita.
+7. Calcola il rischio regression dai risultati test/copertura.
+8. Calcola il rischio code review dai finding deterministici.
+9. Combina i due rischi in `overallRiskLevel`.
+10. Restituisce un report unico per aiutare la decisione umana di merge.
 
 ## Esecuzione manuale (senza slash command)
 Dal root del repo:
@@ -155,7 +159,13 @@ npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/
 npm --prefix tools/regression-mcp run review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":true,"dryRun":false}'
 ```
 
-5) (Opzionale) solo gate code review via CLI:
+5) Review unificata (regression + code-review) in un unico output:
+
+```bash
+npm --prefix tools/regression-mcp run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false,"dryRun":false}'
+```
+
+6) (Opzionale) solo gate code review via CLI:
 
 ```bash
 npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","headRef":"HEAD","includeUntracked":false}'
@@ -174,6 +184,7 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 - `read_business_review_policy`
 - `generate_code_review_report`
 - `generate_regression_review`
+- `generate_unified_review`
 
 ## Config principali da conoscere
 - `config/regression/flow-map.json` -> changed files -> flow
@@ -183,6 +194,7 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 - `config/regression/review-output.schema.json` -> schema output finale
 - `config/regression/code-review-policy.json` -> regole deterministiche code review
 - `config/regression/code-review-output.schema.json` -> schema output code review
+- `config/regression/unified-review-output.schema.json` -> schema output unificato
 
 Mappa leggibile per reviewer:
 - `docs/flows/test-mapping.json`
@@ -210,6 +222,13 @@ L'output code review include almeno:
 - `findingCounts`
 - `riskLevel`
 - `recommendedActions`
+
+L'output unificato include almeno:
+- `regressionReview`
+- `codeReview`
+- `overallRiskLevel`
+- `overallRecommendedActions`
+- `qualityGates`
 
 ## Come mantenere il sistema aggiornato
 Quando aggiungi/modifichi flow di business:

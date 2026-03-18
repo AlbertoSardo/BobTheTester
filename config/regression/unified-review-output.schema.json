@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/regression/unified-review-output.schema.json",
+  "title": "UnifiedReviewOutput",
+  "type": "object",
+  "required": [
+    "tool",
+    "version",
+    "generatedAt",
+    "repoRoot",
+    "inputs",
+    "regressionReview",
+    "codeReview",
+    "overallRiskLevel",
+    "overallRecommendedActions",
+    "qualityGates",
+    "warnings"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "const": "generate_unified_review"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "repoRoot": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "includeUntracked",
+        "changedFiles",
+        "dryRun"
+      ],
+      "properties": {
+        "baseRef": {
+          "type": "string"
+        },
+        "headRef": {
+          "type": "string"
+        },
+        "includeUntracked": {
+          "type": "boolean"
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dryRun": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "regressionReview": {
+      "$ref": "review-output.schema.json"
+    },
+    "codeReview": {
+      "$ref": "code-review-output.schema.json"
+    },
+    "overallRiskLevel": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "overallRecommendedActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "qualityGates": {
+      "type": "object",
+      "required": [
+        "suiteCompletenessGatePassed",
+        "codeReviewRiskGatePassed",
+        "regressionRiskGatePassed",
+        "combinedGatePassed"
+      ],
+      "properties": {
+        "suiteCompletenessGatePassed": {
+          "type": "boolean"
+        },
+        "codeReviewRiskGatePassed": {
+          "type": "boolean"
+        },
+        "regressionRiskGatePassed": {
+          "type": "boolean"
+        },
+        "combinedGatePassed": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

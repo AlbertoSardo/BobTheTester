@@ -14,6 +14,11 @@
 - Added a dedicated deterministic code-review workflow (`generate_code_review_report`) with separate orchestration and output schema for pre-merge gating.
 - Unified Claude invocation on a single command (`/bobthetester`) that runs both deterministic workflows on the same input scope.
 
+## Implementation update (2026-03-18)
+- Added deterministic one-shot `generate_unified_review` MCP tool that returns regression output + code-review output + `overallRiskLevel` in one contract.
+- Added `config/regression/unified-review-output.schema.json` and updated orchestration to use unified quality gates.
+- Updated CLI and scripts to support `npm run unified-review` for local and CI-friendly invocation.
+
 ## 1) Concise architecture summary
 - **Orchestrator (reasoning layer)**: decides *why* a flow is relevant, calls MCP tools in sequence, and produces the final regression review narrative.
 - **MCP server (deterministic tool layer)**: exposes stable, side-effect-scoped tools with explicit inputs/outputs and no business reasoning heuristics.

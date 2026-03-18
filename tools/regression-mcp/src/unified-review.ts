@@ -1,0 +1,137 @@
+import { generateRegressionReview } from "./review.js";
+import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
+import type {
+  RegressionReviewOutput,
+  RiskLevel,
+  UnifiedReviewInput,
+  UnifiedReviewOutput,
+} from "./types.js";
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+}
+
+function riskPriority(level: RiskLevel): number {
+  if (level === "critical") {
+    return 4;
+  }
+
+  if (level === "high") {
+    return 3;
+  }
+
+  if (level === "medium") {
+    return 2;
+  }
+
+  return 1;
+}
+
+function maxRiskLevel(levels: RiskLevel[]): RiskLevel {
+  let current: RiskLevel = "low";
+
+  for (const level of levels) {
+    if (riskPriority(level) > riskPriority(current)) {
+      current = level;
+    }
+  }
+
+  return current;
+}
+
+function deriveRegressionActions(review: RegressionReviewOutput): string[] {
+  const actions: string[] = [];
+
+  if (!review.suiteCompleteness.isComplete) {
+    actions.push("Complete missing regression suite coverage for all incomplete impacted flows.");
+  }
+
+  if (review.passFailSummary.totals.failed > 0) {
+    actions.push("Fix failing Cypress tests before merge.");
+  }
+
+  if (review.suggestedMissingTests.unmappedFiles.length > 0) {
+    actions.push("Update flow mapping for changed files that are currently unmapped.");
+  }
+
+  if (review.suggestedMissingTests.flowsWithoutSpecs.length > 0) {
+    actions.push("Add Cypress specs for impacted flows that currently have no mapped spec files.");
+  }
+
+  if (review.suggestedMissingTests.suggestions.length > 0) {
+    actions.push("Review and address deterministic missing-test suggestions from the regression analysis.");
+  }
+
+  if (review.passFailSummary.cypressStatus === "skipped" && review.impactedFlows.length > 0) {
+    actions.push("Investigate why impacted flows produced no selected specs before merge.");
+  }
+
+  if (actions.length === 0) {
+    actions.push("No regression blockers detected. Keep normal human validation before merge.");
+  }
+
+  return uniqueSorted(actions);
+}
+
+export async function generateUnifiedReview(
+  input: UnifiedReviewInput = {},
+): Promise<UnifiedReviewOutput> {
+  const includeUntracked = input.includeUntracked ?? true;
+  const dryRun = input.dryRun ?? false;
+
+  const regressionReview = await generateRegressionReview({
+    ...input,
+    policyPath: input.regressionPolicyPath ?? input.policyPath,
+    includeUntracked,
+    dryRun,
+  });
+
+  const codeReview = await generateCodeReviewReport({
+    baseRef: input.baseRef,
+    headRef: input.headRef,
+    includeUntracked,
+    changedFiles: regressionReview.inputs.changedFiles,
+    policyPath: input.codeReviewPolicyPath,
+    repoRoot: regressionReview.repoRoot,
+  });
+
+  const overallRiskLevel = maxRiskLevel([regressionReview.riskLevel, codeReview.riskLevel]);
+
+  const overallRecommendedActions = uniqueSorted([
+    ...deriveRegressionActions(regressionReview),
+    ...codeReview.recommendedActions,
+  ]);
+
+  const suiteCompletenessGatePassed = regressionReview.suiteCompleteness.isComplete;
+  const regressionRiskGatePassed =
+    regressionReview.riskLevel === "low" || regressionReview.riskLevel === "medium";
+  const codeReviewRiskGatePassed = codeReview.riskLevel === "low" || codeReview.riskLevel === "medium";
+
+  const qualityGates = {
+    suiteCompletenessGatePassed,
+    codeReviewRiskGatePassed,
+    regressionRiskGatePassed,
+    combinedGatePassed:
+      suiteCompletenessGatePassed && codeReviewRiskGatePassed && regressionRiskGatePassed,
+  };
+
+  return {
+    tool: "generate_unified_review",
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    repoRoot: regressionReview.repoRoot,
+    inputs: {
+      baseRef: input.baseRef,
+      headRef: input.headRef,
+      includeUntracked,
+      changedFiles: regressionReview.inputs.changedFiles,
+      dryRun,
+    },
+    regressionReview,
+    codeReview,
+    overallRiskLevel,
+    overallRecommendedActions,
+    qualityGates,
+    warnings: uniqueSorted([...regressionReview.warnings, ...codeReview.warnings]),
+  };
+}
