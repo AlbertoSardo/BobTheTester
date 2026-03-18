@@ -62,22 +62,22 @@ npm --prefix tools/regression-mcp run tool -- get_changed_files '{"baseRef":"ori
 npm --prefix tools/regression-mcp run tool -- map_impacted_flows '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"]}'
 ```
 
-### `list_relevant_cypress_specs`
+### `list_relevant_playwright_specs`
 ```bash
-npm --prefix tools/regression-mcp run tool -- list_relevant_cypress_specs '{"impactedFlowIds":["user-onboarding","profile-edit"]}'
+npm --prefix tools/regression-mcp run tool -- list_relevant_playwright_specs '{"impactedFlowIds":["user-onboarding","profile-edit"]}'
 ```
 
-### `generate_cypress_suite`
+### `generate_playwright_suite`
 Generate or refresh complete suite coverage from policy:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- generate_cypress_suite '{}'
+npm --prefix tools/regression-mcp run tool -- generate_playwright_suite '{}'
 ```
 
 Only selected flows:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- generate_cypress_suite '{"flows":["user-onboarding","permission-change"]}'
+npm --prefix tools/regression-mcp run tool -- generate_playwright_suite '{"flows":["user-onboarding","permission-change"]}'
 ```
 
 Shortcut command:
@@ -86,35 +86,35 @@ Shortcut command:
 npm --prefix tools/regression-mcp run suite -- '{}'
 ```
 
-### `validate_cypress_suite`
+### `validate_playwright_suite`
 Validate if policy-required suite coverage is complete:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- validate_cypress_suite '{}'
+npm --prefix tools/regression-mcp run tool -- validate_playwright_suite '{}'
 ```
 
 Validate selected flows only:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- validate_cypress_suite '{"flows":["user-onboarding","permission-change"]}'
+npm --prefix tools/regression-mcp run tool -- validate_playwright_suite '{"flows":["user-onboarding","permission-change"]}'
 ```
 
-### `run_cypress`
+### `run_playwright`
 Dry run (safe preview):
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-onboarding.cy.js"],"dryRun":true}'
+npm --prefix tools/regression-mcp run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":true}'
 ```
 
 Real run:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- run_cypress '{"specs":["cypress/e2e/flows/user-onboarding.cy.js"],"dryRun":false,"browser":"electron"}'
+npm --prefix tools/regression-mcp run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
-### `read_cypress_report`
+### `read_playwright_report`
 ```bash
-npm --prefix tools/regression-mcp run tool -- read_cypress_report '{}'
+npm --prefix tools/regression-mcp run tool -- read_playwright_report '{}'
 ```
 
 ### `collect_artifacts`
@@ -134,15 +134,15 @@ npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
 
 ### `generate_regression_review`
 ```bash
-npm --prefix tools/regression-mcp run tool -- generate_regression_review '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'
+npm --prefix tools/regression-mcp run tool -- generate_regression_review '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
 This one-shot command now includes deterministic sub-steps for impacted flows:
-- `generate_cypress_suite`
-- `validate_cypress_suite`
-- Cypress execution only on selected specs
+- `generate_playwright_suite`
+- `validate_playwright_suite`
+- Playwright execution only on selected specs
 
-If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite run).
+If no specs are selected, Playwright execution is skipped intentionally (no implicit full-suite run).
 
 ### `generate_unified_review`
 ```bash
@@ -185,7 +185,7 @@ Rules live in:
 Deterministic mapping lives in:
 
 - `config/regression/flow-map.json` (`changed files -> flow IDs`)
-- `config/regression/flow-spec-map.json` (`flow IDs -> Cypress spec paths`)
+- `config/regression/flow-spec-map.json` (`flow IDs -> Playwright spec paths`)
 - `config/regression/business-review-policy.json` (criteri concettuali e product-flow review)
 
 Human-readable mirror:
@@ -202,7 +202,7 @@ Recommended update flow:
 Use the structured orchestrated command:
 
 ```bash
-npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'
+npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
 Git-diff driven mode:
@@ -262,16 +262,16 @@ Example (shape only):
     "targetFlows": ["profile-edit"],
     "createdSpecFiles": [],
     "updatedSpecFiles": [],
-    "unchangedSpecFiles": ["cypress/e2e/flows/profile-edit.cy.js"],
+    "unchangedSpecFiles": ["playwright/e2e/flows/profile-edit.spec.ts"],
     "mappingUpdated": false
   },
   "suiteCompleteness": {
     "isComplete": true,
     "incompleteFlows": []
   },
-  "selectedSpecs": ["cypress/e2e/flows/profile-edit.cy.js"],
+  "selectedSpecs": ["playwright/e2e/flows/profile-edit.spec.ts"],
   "passFailSummary": {
-    "cypressStatus": "passed",
+    "runnerStatus": "passed",
     "exitCode": 0,
     "totals": {
       "tests": 1,
@@ -286,9 +286,9 @@ Example (shape only):
   "artifactPaths": {
     "screenshots": [],
     "failedScreenshots": [],
-    "videos": ["cypress/videos/profile-edit.cy.js.mp4"],
+    "videos": ["test-results/profile-edit-flow/video.webm"],
     "failedVideos": [],
-    "reports": ["artifacts/cypress/results.json"]
+    "reports": ["artifacts/playwright/results.json"]
   },
   "suggestedMissingTests": {
     "flowsWithoutSpecs": [],

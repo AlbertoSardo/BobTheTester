@@ -6,14 +6,14 @@ import {
   resolveFromRepoRoot,
 } from "../config.js";
 import type {
-  ListRelevantCypressSpecsInput,
-  ListRelevantCypressSpecsOutput,
+  ListRelevantPlaywrightSpecsInput,
+  ListRelevantPlaywrightSpecsOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
 
-export async function listRelevantCypressSpecs(
-  input: ListRelevantCypressSpecsInput,
-): Promise<ListRelevantCypressSpecsOutput> {
+export async function listRelevantPlaywrightSpecs(
+  input: ListRelevantPlaywrightSpecsInput,
+): Promise<ListRelevantPlaywrightSpecsOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const flowSpecMapPath = input.flowSpecMapPath ?? DEFAULT_FLOW_SPEC_MAP_PATH;
   const { config } = await loadFlowSpecMapConfig(repoRoot, flowSpecMapPath);
@@ -41,7 +41,7 @@ export async function listRelevantCypressSpecs(
         continue;
       }
 
-      warnings.push(`Mapped Cypress spec is missing on disk: ${specPath}`);
+      warnings.push(`Mapped Playwright spec is missing on disk: ${specPath}`);
     }
 
     flowToSpecs[flowId] = existingSpecs;
@@ -55,7 +55,7 @@ export async function listRelevantCypressSpecs(
   }
 
   return {
-    tool: "list_relevant_cypress_specs",
+    tool: "list_relevant_playwright_specs",
     flowSpecMapPath: resolveFromRepoRoot(repoRoot, flowSpecMapPath),
     resolvedSpecs: toSortedUnique(resolvedSpecs),
     flowToSpecs,

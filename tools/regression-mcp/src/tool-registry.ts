@@ -1,32 +1,32 @@
-import { generateCypressSuite } from "./tools/generate-cypress-suite.js";
+import { generatePlaywrightSuite } from "./tools/generate-playwright-suite.js";
 import { collectArtifacts } from "./tools/collect-artifacts.js";
 import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
 import { getChangedFiles } from "./tools/get-changed-files.js";
-import { listRelevantCypressSpecs } from "./tools/list-relevant-cypress-specs.js";
+import { listRelevantPlaywrightSpecs } from "./tools/list-relevant-playwright-specs.js";
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
 import { readBusinessReviewPolicy } from "./tools/read-business-review-policy.js";
-import { readCypressReport } from "./tools/read-cypress-report.js";
+import { readPlaywrightReport } from "./tools/read-playwright-report.js";
 import { generateRegressionReview } from "./review.js";
 import { generateUnifiedReview } from "./unified-review.js";
-import { runCypress } from "./tools/run-cypress.js";
+import { runPlaywright } from "./tools/run-playwright.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
-import { validateCypressSuite } from "./tools/validate-cypress-suite.js";
+import { validatePlaywrightSuite } from "./tools/validate-playwright-suite.js";
 import type {
   CodeReviewReportInput,
   CollectArtifactsInput,
-  GenerateCypressSuiteInput,
+  GeneratePlaywrightSuiteInput,
   GetChangedFilesInput,
   JsonSchema,
-  ListRelevantCypressSpecsInput,
+  ListRelevantPlaywrightSpecsInput,
   MapImpactedFlowsInput,
   ReadBusinessReviewPolicyInput,
-  ReadCypressReportInput,
+  ReadPlaywrightReportInput,
   RegressionReviewInput,
-  RunCypressInput,
+  RunPlaywrightInput,
   SuggestMissingTestsInput,
   ToolName,
   UnifiedReviewInput,
-  ValidateCypressSuiteInput,
+  ValidatePlaywrightSuiteInput,
 } from "./types.js";
 
 export interface RegisteredTool {
@@ -105,9 +105,9 @@ function toMapImpactedFlowsInput(input: Record<string, unknown>): MapImpactedFlo
   };
 }
 
-function toListRelevantCypressSpecsInput(
+function toListRelevantPlaywrightSpecsInput(
   input: Record<string, unknown>,
-): ListRelevantCypressSpecsInput {
+): ListRelevantPlaywrightSpecsInput {
   return {
     impactedFlowIds: readRequiredStringArray(input, "impactedFlowIds"),
     flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
@@ -115,7 +115,7 @@ function toListRelevantCypressSpecsInput(
   };
 }
 
-function toGenerateCypressSuiteInput(input: Record<string, unknown>): GenerateCypressSuiteInput {
+function toGeneratePlaywrightSuiteInput(input: Record<string, unknown>): GeneratePlaywrightSuiteInput {
   return {
     flows: readOptionalStringArray(input, "flows"),
     updateMapping: readOptionalBoolean(input, "updateMapping"),
@@ -125,7 +125,7 @@ function toGenerateCypressSuiteInput(input: Record<string, unknown>): GenerateCy
   };
 }
 
-function toValidateCypressSuiteInput(input: Record<string, unknown>): ValidateCypressSuiteInput {
+function toValidatePlaywrightSuiteInput(input: Record<string, unknown>): ValidatePlaywrightSuiteInput {
   return {
     flows: readOptionalStringArray(input, "flows"),
     policyPath: readOptionalString(input, "policyPath"),
@@ -134,15 +134,15 @@ function toValidateCypressSuiteInput(input: Record<string, unknown>): ValidateCy
   };
 }
 
-function toRunCypressInput(input: Record<string, unknown>): RunCypressInput {
+function toRunPlaywrightInput(input: Record<string, unknown>): RunPlaywrightInput {
   const reportFormat = readOptionalString(input, "reportFormat");
   if (
     typeof reportFormat !== "undefined" &&
     reportFormat !== "json" &&
     reportFormat !== "junit" &&
-    reportFormat !== "text"
+    reportFormat !== "line"
   ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, text.");
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
   }
 
   return {
@@ -158,15 +158,15 @@ function toRunCypressInput(input: Record<string, unknown>): RunCypressInput {
   };
 }
 
-function toReadCypressReportInput(input: Record<string, unknown>): ReadCypressReportInput {
+function toReadPlaywrightReportInput(input: Record<string, unknown>): ReadPlaywrightReportInput {
   const reportFormat = readOptionalString(input, "reportFormat");
   if (
     typeof reportFormat !== "undefined" &&
     reportFormat !== "json" &&
     reportFormat !== "junit" &&
-    reportFormat !== "text"
+    reportFormat !== "line"
   ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, text.");
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
   }
 
   return {
@@ -210,9 +210,9 @@ function toRegressionReviewInput(input: Record<string, unknown>): RegressionRevi
     typeof reportFormat !== "undefined" &&
     reportFormat !== "json" &&
     reportFormat !== "junit" &&
-    reportFormat !== "text"
+    reportFormat !== "line"
   ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, text.");
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
   }
 
   return {
@@ -240,9 +240,9 @@ function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInpu
     typeof reportFormat !== "undefined" &&
     reportFormat !== "json" &&
     reportFormat !== "junit" &&
-    reportFormat !== "text"
+    reportFormat !== "line"
   ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, text.");
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
   }
 
   return {
@@ -301,8 +301,8 @@ export const registeredTools: RegisteredTool[] = [
     handler: async (input) => mapImpactedFlows(toMapImpactedFlowsInput(input)),
   },
   {
-    name: "list_relevant_cypress_specs",
-    description: "Resolves impacted flow IDs to Cypress specs via static config.",
+    name: "list_relevant_playwright_specs",
+    description: "Resolves impacted flow IDs to Playwright specs via static config.",
     inputSchema: {
       type: "object",
       properties: {
@@ -316,11 +316,11 @@ export const registeredTools: RegisteredTool[] = [
       required: ["impactedFlowIds"],
       additionalProperties: false,
     },
-    handler: async (input) => listRelevantCypressSpecs(toListRelevantCypressSpecsInput(input)),
+    handler: async (input) => listRelevantPlaywrightSpecs(toListRelevantPlaywrightSpecsInput(input)),
   },
   {
-    name: "generate_cypress_suite",
-    description: "Generates or updates Cypress suite coverage from business policy.",
+    name: "generate_playwright_suite",
+    description: "Generates or updates Playwright suite coverage from business policy.",
     inputSchema: {
       type: "object",
       properties: {
@@ -335,11 +335,11 @@ export const registeredTools: RegisteredTool[] = [
       },
       additionalProperties: false,
     },
-    handler: async (input) => generateCypressSuite(toGenerateCypressSuiteInput(input)),
+    handler: async (input) => generatePlaywrightSuite(toGeneratePlaywrightSuiteInput(input)),
   },
   {
-    name: "validate_cypress_suite",
-    description: "Validates Cypress suite completeness against business policy coverage.",
+    name: "validate_playwright_suite",
+    description: "Validates Playwright suite completeness against business policy coverage.",
     inputSchema: {
       type: "object",
       properties: {
@@ -353,11 +353,11 @@ export const registeredTools: RegisteredTool[] = [
       },
       additionalProperties: false,
     },
-    handler: async (input) => validateCypressSuite(toValidateCypressSuiteInput(input)),
+    handler: async (input) => validatePlaywrightSuite(toValidatePlaywrightSuiteInput(input)),
   },
   {
-    name: "run_cypress",
-    description: "Runs Cypress for selected specs (dry-run by default).",
+    name: "run_playwright",
+    description: "Runs Playwright for selected specs (dry-run by default).",
     inputSchema: {
       type: "object",
       properties: {
@@ -372,7 +372,7 @@ export const registeredTools: RegisteredTool[] = [
         reportPath: { type: "string" },
         reportFormat: {
           type: "string",
-          enum: ["json", "junit", "text"],
+          enum: ["json", "junit", "line"],
         },
         extraArgs: {
           type: "array",
@@ -383,28 +383,28 @@ export const registeredTools: RegisteredTool[] = [
       required: ["specs"],
       additionalProperties: false,
     },
-    handler: async (input) => runCypress(toRunCypressInput(input)),
+    handler: async (input) => runPlaywright(toRunPlaywrightInput(input)),
   },
   {
-    name: "read_cypress_report",
-    description: "Reads and normalizes Cypress report output.",
+    name: "read_playwright_report",
+    description: "Reads and normalizes Playwright report output.",
     inputSchema: {
       type: "object",
       properties: {
         reportPath: { type: "string" },
         reportFormat: {
           type: "string",
-          enum: ["json", "junit", "text"],
+          enum: ["json", "junit", "line"],
         },
         repoRoot: { type: "string" },
       },
       additionalProperties: false,
     },
-    handler: async (input) => readCypressReport(toReadCypressReportInput(input)),
+    handler: async (input) => readPlaywrightReport(toReadPlaywrightReportInput(input)),
   },
   {
     name: "collect_artifacts",
-    description: "Collects Cypress artifacts from configured directories.",
+    description: "Collects test artifacts from configured directories.",
     inputSchema: {
       type: "object",
       properties: {
@@ -420,7 +420,7 @@ export const registeredTools: RegisteredTool[] = [
   },
   {
     name: "suggest_missing_tests",
-    description: "Suggests missing mappings and missing Cypress coverage.",
+    description: "Suggests missing mappings and missing Playwright coverage.",
     inputSchema: {
       type: "object",
       properties: {
@@ -496,7 +496,7 @@ export const registeredTools: RegisteredTool[] = [
         reportPath: { type: "string" },
         reportFormat: {
           type: "string",
-          enum: ["json", "junit", "text"],
+          enum: ["json", "junit", "line"],
         },
         extraArgs: {
           type: "array",
@@ -533,7 +533,7 @@ export const registeredTools: RegisteredTool[] = [
         reportPath: { type: "string" },
         reportFormat: {
           type: "string",
-          enum: ["json", "junit", "text"],
+          enum: ["json", "junit", "line"],
         },
         extraArgs: {
           type: "array",

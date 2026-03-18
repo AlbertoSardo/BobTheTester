@@ -1,13 +1,13 @@
 import { findRepositoryRoot } from "./config.js";
 import { collectArtifacts } from "./tools/collect-artifacts.js";
-import { generateCypressSuite } from "./tools/generate-cypress-suite.js";
+import { generatePlaywrightSuite } from "./tools/generate-playwright-suite.js";
 import { getChangedFiles } from "./tools/get-changed-files.js";
-import { listRelevantCypressSpecs } from "./tools/list-relevant-cypress-specs.js";
+import { listRelevantPlaywrightSpecs } from "./tools/list-relevant-playwright-specs.js";
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
-import { readCypressReport } from "./tools/read-cypress-report.js";
-import { runCypress } from "./tools/run-cypress.js";
+import { readPlaywrightReport } from "./tools/read-playwright-report.js";
+import { runPlaywright } from "./tools/run-playwright.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
-import { validateCypressSuite } from "./tools/validate-cypress-suite.js";
+import { validatePlaywrightSuite } from "./tools/validate-playwright-suite.js";
 import type {
   GetChangedFilesOutput,
   RegressionReviewInput,
@@ -25,7 +25,7 @@ function deriveRiskLevel(
   suiteIsComplete: boolean,
   impactedFlows: string[],
   selectedSpecs: string[],
-  cypressStatus: "skipped" | "passed" | "failed",
+  runnerStatus: "skipped" | "passed" | "failed",
 ): RiskLevel {
   if (failedTestCount > 0 && (hasCoverageGaps || !suiteIsComplete)) {
     return "critical";
@@ -43,7 +43,7 @@ function deriveRiskLevel(
     return "high";
   }
 
-  if (hasCoverageGaps || (cypressStatus === "skipped" && impactedFlows.length > 0)) {
+  if (hasCoverageGaps || (runnerStatus === "skipped" && impactedFlows.length > 0)) {
     return "medium";
   }
 
@@ -84,14 +84,14 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
-  const suiteGeneration = await generateCypressSuite({
+  const suiteGeneration = await generatePlaywrightSuite({
     flows: impacted.impactedFlowIds,
     policyPath: input.policyPath,
     flowSpecMapPath: input.flowSpecMapPath,
     repoRoot,
   });
 
-  const selected = await listRelevantCypressSpecs({
+  const selected = await listRelevantPlaywrightSpecs({
     impactedFlowIds: impacted.impactedFlowIds,
     flowSpecMapPath: input.flowSpecMapPath,
     repoRoot,
@@ -99,7 +99,7 @@ export async function generateRegressionReview(
 
   const dryRun = input.dryRun ?? false;
 
-  const run = await runCypress({
+  const run = await runPlaywright({
     specs: selected.resolvedSpecs,
     dryRun,
     headed: input.headed,
@@ -115,12 +115,12 @@ export async function generateRegressionReview(
   const runtimeReadSkipReason =
     dryRun === true
       ? "Dry run enabled: report parsing skipped to avoid stale artifact reuse."
-      : "Cypress execution skipped: report parsing and artifact collection skipped to avoid stale artifact reuse.";
+      : "Playwright execution skipped: report parsing and artifact collection skipped to avoid stale artifact reuse.";
 
   const report =
     shouldSkipRuntimeReads
       ? {
-          tool: "read_cypress_report" as const,
+          tool: "read_playwright_report" as const,
           reportPath: run.reportPath,
           reportFormat: run.reportFormat,
           status: "stub" as const,
@@ -136,7 +136,7 @@ export async function generateRegressionReview(
           failedSpecFiles: [],
           warnings: [runtimeReadSkipReason],
         }
-      : await readCypressReport({
+      : await readPlaywrightReport({
           reportPath: run.reportPath,
           reportFormat: run.reportFormat,
           repoRoot,
@@ -166,7 +166,7 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
-  const suiteValidation = await validateCypressSuite({
+  const suiteValidation = await validatePlaywrightSuite({
     flows: impacted.impactedFlowIds,
     policyPath: input.policyPath,
     flowSpecMapPath: input.flowSpecMapPath,
@@ -243,7 +243,7 @@ export async function generateRegressionReview(
     },
     selectedSpecs: selected.resolvedSpecs,
     passFailSummary: {
-      cypressStatus: run.status,
+      runnerStatus: run.status,
       exitCode: run.exitCode,
       totals: report.totals,
     },

@@ -1,10 +1,12 @@
 # BobTheTester
 
-Workflow MCP deterministico per fare regression review su flow di business con Cypress, integrato in Claude tramite comando `/bobthetester`.
+Workflow MCP deterministico per fare regression review su flow di business con Playwright, integrato in Claude tramite comando `/bobthetester`.
+
+Aggiornamento corrente: migrazione clean-cut completata su Playwright con output unificato (`generate_unified_review`) e quality gates deterministici.
 
 ## Cosa fa
 - Mappa i file cambiati su flow di business (`onboarding`, `offboarding`, `profile`, `permissions`)
-- Seleziona in modo deterministico le spec Cypress rilevanti
+- Seleziona in modo deterministico le spec Playwright rilevanti
 - Esegue regression test con output machine-readable
 - Raccoglie report e artifact
 - Evidenzia gap di copertura (flow senza spec o file non mappati)
@@ -15,7 +17,7 @@ Workflow MCP deterministico per fare regression review su flow di business con C
 - Tool MCP deterministici, senza ragionamento nascosto nel layer tool
 - Logica di business esplicita in JSON versionato
 - Orchestrazione agentica separata dal layer di esecuzione
-- Cypress come execution engine per regression UI
+- Playwright come execution engine per regression UI
 
 ## Prerequisiti
 - Node.js e npm disponibili in PATH
@@ -34,11 +36,12 @@ cd BobTheTester
 
 Questo script:
 1. installa dipendenze in `tools/regression-mcp`
-2. builda il server MCP
-3. genera snippet config MCP locale in:
+2. installa runtime browser Playwright (`chromium`)
+3. builda il server MCP
+4. genera snippet config MCP locale in:
    - `~/.config/tiware/bobthetester/claude-mcp-server.local.json`
 
-Per fare anche merge automatico nella config di Claude Desktop:
+Per aggiornare automaticamente la config di Claude Desktop:
 
 ```bash
 ./scripts/setup-bobthetester.sh --write-desktop-config
@@ -76,7 +79,7 @@ Esempi:
 
 ```text
 /bobthetester
-/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}
+/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}
 ```
 
 Comportamento atteso:
@@ -86,10 +89,10 @@ Comportamento atteso:
    - mapping file -> flow,
    - generazione/aggiornamento suite sui flow impattati,
    - validazione completezza,
-   - run Cypress locale sulle sole spec selezionate,
+   - run Playwright locale sulle sole spec selezionate,
    - output finale comprensivo con rischio e azioni.
 4. nel blocco code-review della review unificata applica regole deterministiche su path sensibili, added lines e dimensione diff.
-5. se non ci sono spec impattate, salta Cypress (no full suite implicita) e riporta gap/risk.
+5. se non ci sono spec impattate, salta Playwright (no full suite implicita) e riporta gap/risk.
 6. calcola `overallRiskLevel` e quality gates in un output unico.
 7. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
 
@@ -103,9 +106,9 @@ flowchart TD
   C --> D["4) Regression subflow"]
   C --> E["5) Code review subflow"]
 
-  D --> F{"Spec Cypress selezionate?"}
-  F -- "si" --> G["6) Run Cypress + report + artifact"]
-  F -- "no" --> H["6) Salta Cypress in modo sicuro"]
+  D --> F{"Spec Playwright selezionate?"}
+  F -- "si" --> G["6) Run Playwright + report + artifact"]
+  F -- "no" --> H["6) Salta Playwright in modo sicuro"]
   G --> I["7) Calcola riskLevel regression"]
   H --> I
 
@@ -121,7 +124,7 @@ Spiegazione semplice degli step:
 3. Parte un tool unico (`generate_unified_review`) che coordina tutti i check.
 4. Il blocco regression fa mapping flow, suite/check e selezione spec.
 5. In parallelo gira la code review deterministica sullo stesso scope.
-6. Se ci sono spec, esegue Cypress; se non ci sono, lo salta senza full suite implicita.
+6. Se ci sono spec, esegue Playwright; se non ci sono, lo salta senza full suite implicita.
 7. Calcola il rischio regression dai risultati test/copertura.
 8. Calcola il rischio code review dai finding deterministici.
 9. Combina i due rischi in `overallRiskLevel`.
@@ -132,6 +135,7 @@ Dal root del repo:
 
 ```bash
 npm --prefix tools/regression-mcp install
+npm --prefix tools/regression-mcp exec playwright install chromium
 npm --prefix tools/regression-mcp run build
 ```
 
@@ -150,7 +154,7 @@ npm --prefix tools/regression-mcp run suite:check -- '{}'
 3) Esegui review completa su changed files espliciti:
 
 ```bash
-npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'
+npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
 4) Oppure modalita git-diff driven:
@@ -174,11 +178,11 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 ## Tool MCP disponibili
 - `get_changed_files`
 - `map_impacted_flows`
-- `list_relevant_cypress_specs`
-- `generate_cypress_suite`
-- `validate_cypress_suite`
-- `run_cypress`
-- `read_cypress_report`
+- `list_relevant_playwright_specs`
+- `generate_playwright_suite`
+- `validate_playwright_suite`
+- `run_playwright`
+- `read_playwright_report`
 - `collect_artifacts`
 - `suggest_missing_tests`
 - `read_business_review_policy`
@@ -188,7 +192,7 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 
 ## Config principali da conoscere
 - `config/regression/flow-map.json` -> changed files -> flow
-- `config/regression/flow-spec-map.json` -> flow -> spec Cypress
+- `config/regression/flow-spec-map.json` -> flow -> spec Playwright
 - `config/regression/business-review-policy.json` -> criteri business e copertura minima
 - `config/regression/tooling.json` -> configurazione esecuzione/report/artifact
 - `config/regression/review-output.schema.json` -> schema output finale
@@ -200,9 +204,9 @@ Mappa leggibile per reviewer:
 - `docs/flows/test-mapping.json`
 
 ## Output e artifact
-- Report JSON Cypress: `artifacts/cypress/results.json`
-- Video: `cypress/videos/`
-- Screenshot: `cypress/screenshots/`
+- Report JSON Playwright: `artifacts/playwright/results.json`
+- Video/screenshot/trace: `test-results/`
+- HTML report (se abilitato): `playwright-report/`
 
 L'output review include almeno:
 - `mapping`
@@ -247,7 +251,7 @@ npm --prefix tools/regression-mcp run suite:check -- '{}'
 - `/bobthetester` non trovato: verifica che il client Claude carichi `.claude/commands/`
 - MCP non parte: verifica che esista `tools/regression-mcp/dist/index.js` (build mancante)
 - Nessun test eseguito: controlla `dryRun` (se `true`, esecuzione reale viene saltata)
-- Nessuna spec selezionata: Cypress viene saltato per sicurezza; controlla mapping in `flow-map.json` e `flow-spec-map.json`
+- Nessuna spec selezionata: Playwright viene saltato per sicurezza; controlla mapping in `flow-map.json` e `flow-spec-map.json`
 
 ## Documentazione di dettaglio
 - `docs/ai/bobthetester-quickstart.md`

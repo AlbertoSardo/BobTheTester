@@ -25,7 +25,7 @@
     },
     {
       "id": "regression-runner",
-      "focus": "deterministic selection and execution of relevant Cypress specs"
+      "focus": "deterministic selection and execution of relevant Playwright specs"
     },
     {
       "id": "synthesizer",
@@ -81,6 +81,6 @@
   "defaultToolInput": {
     "includeUntracked": true,
     "dryRun": false,
-    "browser": "electron"
+    "browser": "chromium"
   }
 }

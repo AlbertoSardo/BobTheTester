@@ -2,32 +2,13 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { findRepositoryRoot, loadToolingConfig, resolveFromRepoRoot } from "../config.js";
-import type { RunCypressInput, RunCypressOutput } from "../types.js";
+import { fileExists, findRepositoryRoot, loadToolingConfig, resolveFromRepoRoot } from "../config.js";
+import type { RunPlaywrightInput, RunPlaywrightOutput } from "../types.js";
 
 interface CommandExecution {
   exitCode: number;
   stdout: string;
   stderr: string;
-}
-
-interface MochaStats {
-  suites?: number;
-  tests?: number;
-  passes?: number;
-  pending?: number;
-  failures?: number;
-  duration?: number;
-  start?: string;
-  end?: string;
-}
-
-function safeNumber(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function safeString(value: unknown): string {
-  return typeof value === "string" ? value : "";
 }
 
 function maybeParseJson(value: string): unknown | undefined {
@@ -87,7 +68,7 @@ function findMatchingJsonBlocks(stdout: string): Record<string, unknown>[] {
         }
 
         const record = parsed as Record<string, unknown>;
-        if (record.stats || record.runs || record.totalTests) {
+        if (record.stats || record.suites || record.errors || record.config) {
           matches.push(record);
           start = index;
           break;
@@ -101,80 +82,6 @@ function findMatchingJsonBlocks(stdout: string): Record<string, unknown>[] {
   return matches;
 }
 
-function aggregateMochaJsonReports(reports: Record<string, unknown>[]): Record<string, unknown> | undefined {
-  const mochaReports = reports.filter((report) => typeof report.stats === "object" && report.stats !== null);
-  if (mochaReports.length === 0) {
-    return undefined;
-  }
-
-  if (mochaReports.length === 1) {
-    return mochaReports[0];
-  }
-
-  let suites = 0;
-  let tests = 0;
-  let passes = 0;
-  let pending = 0;
-  let failures = 0;
-  let duration = 0;
-
-  const startTimes: string[] = [];
-  const endTimes: string[] = [];
-  const testsArray: unknown[] = [];
-  const pendingArray: unknown[] = [];
-  const failuresArray: unknown[] = [];
-  const passesArray: unknown[] = [];
-
-  for (const report of mochaReports) {
-    const statsRecord = report.stats as MochaStats;
-    suites += safeNumber(statsRecord.suites);
-    tests += safeNumber(statsRecord.tests);
-    passes += safeNumber(statsRecord.passes);
-    pending += safeNumber(statsRecord.pending);
-    failures += safeNumber(statsRecord.failures);
-    duration += safeNumber(statsRecord.duration);
-
-    const start = safeString(statsRecord.start);
-    const end = safeString(statsRecord.end);
-    if (start.length > 0) {
-      startTimes.push(start);
-    }
-    if (end.length > 0) {
-      endTimes.push(end);
-    }
-
-    if (Array.isArray(report.tests)) {
-      testsArray.push(...report.tests);
-    }
-    if (Array.isArray(report.pending)) {
-      pendingArray.push(...report.pending);
-    }
-    if (Array.isArray(report.failures)) {
-      failuresArray.push(...report.failures);
-    }
-    if (Array.isArray(report.passes)) {
-      passesArray.push(...report.passes);
-    }
-  }
-
-  return {
-    stats: {
-      suites,
-      tests,
-      passes,
-      pending,
-      failures,
-      start: startTimes.length > 0 ? startTimes.sort()[0] : "",
-      end: endTimes.length > 0 ? endTimes.sort().reverse()[0] : "",
-      duration,
-    },
-    tests: testsArray,
-    pending: pendingArray,
-    failures: failuresArray,
-    passes: passesArray,
-  };
-}
-
 async function writeJsonReporterOutput(
   stdout: string,
   reportPath: string,
@@ -184,25 +91,29 @@ async function writeJsonReporterOutput(
     return {
       wroteReport: false,
       warning:
-        "Unable to extract JSON reporter payload from Cypress stdout; report file was not written.",
+        "Unable to extract JSON reporter payload from Playwright stdout; report file was not written.",
     };
   }
 
-  const aggregatedMocha = aggregateMochaJsonReports(parsedReports);
-  const fallbackReport =
-    parsedReports.find((report) => report.runs || report.totalTests) ?? parsedReports[parsedReports.length - 1];
-  const reportPayload = aggregatedMocha ?? fallbackReport;
+  const reportPayload =
+    parsedReports.find((report) => report.suites || report.stats || report.errors) ??
+    parsedReports[parsedReports.length - 1];
 
   await writeFile(reportPath, JSON.stringify(reportPayload, null, 2), "utf-8");
   return { wroteReport: true };
 }
 
-async function runCommand(command: string, args: string[], cwd: string): Promise<CommandExecution> {
+async function runCommand(
+  command: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): Promise<CommandExecution> {
   return new Promise<CommandExecution>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
+      env,
     });
 
     let stdout = "";
@@ -230,31 +141,31 @@ async function runCommand(command: string, args: string[], cwd: string): Promise
   });
 }
 
-export async function runCypress(input: RunCypressInput): Promise<RunCypressOutput> {
+export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlaywrightOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const { config: toolingConfig } = await loadToolingConfig(repoRoot);
 
   const dryRun = input.dryRun ?? true;
-  const reportFormat = input.reportFormat ?? toolingConfig.cypress.reportFormat;
-  const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.cypress.reportPath);
-  const command = toolingConfig.cypress.command;
-  const args = [...toolingConfig.cypress.commandArgs, "run"];
+  const reportFormat = input.reportFormat ?? toolingConfig.playwright.reportFormat;
+  const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.playwright.reportPath);
+  const command = toolingConfig.playwright.command;
+  const args = [...toolingConfig.playwright.commandArgs, "test"];
   const warnings: string[] = [];
 
   const specs = Array.from(new Set(input.specs)).sort((a, b) => a.localeCompare(b));
   const startedAt = new Date();
 
   if (specs.length > 0) {
-    args.push("--spec", specs.join(","));
+    args.push(...specs);
   } else {
     warnings.push(
-      "No Cypress specs were selected. Skipped execution to avoid unintended full-suite Cypress runs.",
+      "No Playwright specs were selected. Skipped execution to avoid unintended full-suite Playwright runs.",
     );
   }
 
-  const browser = input.browser ?? toolingConfig.cypress.defaultBrowser;
-  if (browser) {
-    args.push("--browser", browser);
+  const project = input.browser ?? toolingConfig.playwright.defaultProject;
+  if (project) {
+    args.push("--project", project);
   }
 
   if (input.headed === true) {
@@ -262,19 +173,17 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
   }
 
   if (input.configFile) {
-    args.push("--config-file", input.configFile);
-  } else if (toolingConfig.cypress.configFile) {
-    args.push("--config-file", toolingConfig.cypress.configFile);
+    args.push("--config", input.configFile);
+  } else if (toolingConfig.playwright.configFile) {
+    args.push("--config", toolingConfig.playwright.configFile);
   }
 
   if (reportFormat === "json") {
-    const relativeReportPath = path.relative(repoRoot, reportPath).replace(/\\/g, "/");
     args.push("--reporter", "json");
-    args.push("--reporter-options", `output=${relativeReportPath},overwrite=true`);
+  } else if (reportFormat === "junit") {
+    args.push("--reporter", "junit");
   } else {
-    warnings.push(
-      `Report format '${reportFormat}' is not configured for deterministic parsing. Prefer 'json'.`,
-    );
+    args.push("--reporter", "line");
   }
 
   if (Array.isArray(input.extraArgs) && input.extraArgs.length > 0) {
@@ -284,7 +193,7 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
   if (specs.length === 0) {
     const finishedAt = new Date();
     return {
-      tool: "run_cypress",
+      tool: "run_playwright",
       dryRun,
       command: [command, ...args],
       cwd: repoRoot,
@@ -305,7 +214,7 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
   if (dryRun) {
     const finishedAt = new Date();
     return {
-      tool: "run_cypress",
+      tool: "run_playwright",
       dryRun,
       command: [command, ...args],
       cwd: repoRoot,
@@ -327,18 +236,32 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
     await mkdir(path.dirname(reportPath), { recursive: true });
     await rm(reportPath, { force: true });
 
-    const result = await runCommand(command, args, repoRoot);
+    const commandEnv: NodeJS.ProcessEnv = { ...process.env };
+    const nodeModulesPath = resolveFromRepoRoot(repoRoot, "tools/regression-mcp/node_modules");
+    commandEnv.NODE_PATH = commandEnv.NODE_PATH
+      ? `${nodeModulesPath}:${commandEnv.NODE_PATH}`
+      : nodeModulesPath;
+    if (reportFormat === "json") {
+      commandEnv.PLAYWRIGHT_JSON_OUTPUT_NAME = reportPath;
+    }
+    if (reportFormat === "junit") {
+      commandEnv.PLAYWRIGHT_JUNIT_OUTPUT_NAME = reportPath;
+    }
+
+    const result = await runCommand(command, args, repoRoot, commandEnv);
     const finishedAt = new Date();
 
     if (reportFormat === "json") {
-      const reportWrite = await writeJsonReporterOutput(result.stdout, reportPath);
-      if (!reportWrite.wroteReport && reportWrite.warning) {
-        warnings.push(reportWrite.warning);
+      if (!(await fileExists(reportPath))) {
+        const reportWrite = await writeJsonReporterOutput(result.stdout, reportPath);
+        if (!reportWrite.wroteReport && reportWrite.warning) {
+          warnings.push(reportWrite.warning);
+        }
       }
     }
 
     return {
-      tool: "run_cypress",
+      tool: "run_playwright",
       dryRun,
       command: [command, ...args],
       cwd: repoRoot,
@@ -357,7 +280,7 @@ export async function runCypress(input: RunCypressInput): Promise<RunCypressOutp
   } catch (error) {
     const finishedAt = new Date();
     return {
-      tool: "run_cypress",
+      tool: "run_playwright",
       dryRun,
       command: [command, ...args],
       cwd: repoRoot,

@@ -10,7 +10,11 @@ import {
   loadFlowSpecMapConfig,
   resolveFromRepoRoot,
 } from "../config.js";
-import type { GenerateCypressSuiteInput, GenerateCypressSuiteOutput, JsonValue } from "../types.js";
+import type {
+  GeneratePlaywrightSuiteInput,
+  GeneratePlaywrightSuiteOutput,
+  JsonValue,
+} from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
 
 const COVERAGE_TITLE_PREFIX = "covers: ";
@@ -62,7 +66,7 @@ function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, 
 
 function extractExistingTestTitles(specContent: string): Set<string> {
   const titles = new Set<string>();
-  const testTitlePattern = /\bit\s*\(\s*(["'`])(.+?)\1\s*,/g;
+  const testTitlePattern = /\b(?:test|it)\s*\(\s*(["'`])(.+?)\1\s*,/g;
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
@@ -79,8 +83,9 @@ function createCoverageTestBlock(flowId: string, scenario: string): string {
   const title = `${COVERAGE_TITLE_PREFIX}${escapedScenario}`;
 
   return [
-    `  it("${title}", () => {`,
-    `    cy.wrap({ flow: "${escapedFlowId}", scenario: "${escapedScenario}" }).its("flow").should("eq", "${escapedFlowId}");`,
+    `  test("${title}", async () => {`,
+    `    const context = { flow: "${escapedFlowId}", scenario: "${escapedScenario}" };`,
+    `    expect(context.flow).toBe("${escapedFlowId}");`,
     "  });",
   ].join("\n");
 }
@@ -101,7 +106,14 @@ function appendCoverageTests(specContent: string, missingScenarios: string[], fl
 
 function createNewSpecContent(flowId: string, scenarios: string[]): string {
   const tests = scenarios.map((scenario) => createCoverageTestBlock(flowId, scenario));
-  return `describe("${escapeDoubleQuotedString(flowId)} flow", () => {\n${tests.join("\n\n")}\n});\n`;
+  return [
+    'import { expect, test } from "@playwright/test";',
+    "",
+    `test.describe("${escapeDoubleQuotedString(flowId)} flow", () => {`,
+    tests.join("\n\n"),
+    "});",
+    "",
+  ].join("\n");
 }
 
 function sortFlowSpecMap(flowToSpecs: Record<string, string[]>): Record<string, string[]> {
@@ -113,16 +125,16 @@ function sortFlowSpecMap(flowToSpecs: Record<string, string[]>): Record<string, 
 }
 
 function defaultSpecPath(flowId: string): string {
-  return `cypress/e2e/flows/${flowId}.cy.js`;
+  return `playwright/e2e/flows/${flowId}.spec.ts`;
 }
 
 function pickConcreteSpecPath(specPaths: string[]): string | undefined {
   return specPaths.find((specPath) => !specPath.includes("*") && !specPath.includes("?"));
 }
 
-export async function generateCypressSuite(
-  input: GenerateCypressSuiteInput = {},
-): Promise<GenerateCypressSuiteOutput> {
+export async function generatePlaywrightSuite(
+  input: GeneratePlaywrightSuiteInput = {},
+): Promise<GeneratePlaywrightSuiteOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const policyPath = input.policyPath ?? DEFAULT_BUSINESS_POLICY_PATH;
   const flowSpecMapPath = input.flowSpecMapPath ?? DEFAULT_FLOW_SPEC_MAP_PATH;
@@ -219,7 +231,7 @@ export async function generateCypressSuite(
   }
 
   return {
-    tool: "generate_cypress_suite",
+    tool: "generate_playwright_suite",
     policyPath: resolvedPolicyPath,
     flowSpecMapPath: resolvedFlowSpecMapPath,
     targetFlows,

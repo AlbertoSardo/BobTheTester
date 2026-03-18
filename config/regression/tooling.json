@@ -4,21 +4,22 @@
     "defaultBaseRef": "HEAD~1",
     "defaultHeadRef": "HEAD"
   },
-  "cypress": {
+  "playwright": {
     "command": "npm",
     "commandArgs": [
       "exec",
       "--prefix",
       "tools/regression-mcp",
       "--",
-      "cypress"
+      "playwright"
     ],
-    "defaultBrowser": "electron",
-    "configFile": "cypress.config.cjs",
+    "defaultProject": "chromium",
+    "configFile": "playwright.config.ts",
     "reportFormat": "json",
-    "reportPath": "artifacts/cypress/results.json",
-    "screenshotsDir": "cypress/screenshots",
-    "videosDir": "cypress/videos",
-    "resultsDir": "artifacts/cypress"
+    "reportPath": "artifacts/playwright/results.json",
+    "testResultsDir": "test-results",
+    "htmlReportDir": "playwright-report",
+    "tracesDir": "test-results",
+    "resultsDir": "artifacts/playwright"
   }
 }

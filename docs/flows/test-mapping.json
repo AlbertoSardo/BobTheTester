@@ -1,18 +1,18 @@
 {
   "version": 1,
-  "description": "Business-flow to Cypress spec mapping for MCP regression review",
+  "description": "Business-flow to Playwright spec mapping for MCP regression review",
   "flows": {
     "user-onboarding": [
-      "cypress/e2e/flows/user-onboarding.cy.js"
+      "playwright/e2e/flows/user-onboarding.spec.ts"
     ],
     "user-offboarding": [
-      "cypress/e2e/flows/user-offboarding.cy.js"
+      "playwright/e2e/flows/user-offboarding.spec.ts"
     ],
     "profile-edit": [
-      "cypress/e2e/flows/profile-edit.cy.js"
+      "playwright/e2e/flows/profile-edit.spec.ts"
     ],
     "permission-change": [
-      "cypress/e2e/flows/permission-change.cy.js"
+      "playwright/e2e/flows/permission-change.spec.ts"
     ]
   }
 }

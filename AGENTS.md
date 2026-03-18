@@ -15,9 +15,9 @@ Implement an MCP-based regression review workflow for this repository.
 ## Implementation expectations
 - Build an MCP server that exposes deterministic tools; do not put business reasoning inside the MCP server.
 - Claude/Codex-style reasoning belongs in prompts and orchestration, not in the tool layer.
-- Cypress should be the execution engine for regression tests on UI flows.
+- Playwright should be the execution engine for regression tests on UI flows.
 - Organize regression logic around business flows (for example onboarding/offboarding), not only pages/components.
-- Keep a static mapping between impacted flows and Cypress specs when possible.
+- Keep a static mapping between impacted flows and Playwright specs when possible.
 - Prefer simple, inspectable JSON config over hidden heuristics.
 
 
@@ -25,9 +25,9 @@ Implement an MCP-based regression review workflow for this repository.
 Implement or scaffold these tools if missing:
 - get_changed_files
 - map_impacted_flows
-- list_relevant_cypress_specs
-- run_cypress
-- read_cypress_report
+- list_relevant_playwright_specs
+- run_playwright
+- read_playwright_report
 - collect_artifacts
 - suggest_missing_tests
 

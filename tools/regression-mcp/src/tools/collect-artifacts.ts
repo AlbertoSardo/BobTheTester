@@ -37,67 +37,67 @@ async function readFailedSpecFiles(reportPath: string): Promise<string[]> {
     const record = parsed as Record<string, unknown>;
     const failedSpecFiles: string[] = [];
 
-    if (Array.isArray(record.runs)) {
-      for (const run of record.runs) {
-        if (typeof run !== "object" || run === null) {
-          continue;
+    function walkSuite(suiteRecord: Record<string, unknown>, parentFile?: string): void {
+      const suiteFile =
+        typeof suiteRecord.file === "string" && suiteRecord.file.length > 0
+          ? suiteRecord.file
+          : parentFile;
+
+      if (Array.isArray(suiteRecord.specs)) {
+        for (const spec of suiteRecord.specs) {
+          if (typeof spec !== "object" || spec === null) {
+            continue;
+          }
+
+          const specRecord = spec as Record<string, unknown>;
+          const specFile =
+            typeof specRecord.file === "string" && specRecord.file.length > 0
+              ? specRecord.file
+              : suiteFile;
+
+          const tests = Array.isArray(specRecord.tests)
+            ? specRecord.tests.filter((test) => typeof test === "object" && test !== null)
+            : [];
+
+          const hasFailedTest = tests.some((test) => {
+            const testRecord = test as Record<string, unknown>;
+            const results = Array.isArray(testRecord.results)
+              ? testRecord.results.filter((result) => typeof result === "object" && result !== null)
+              : [];
+
+            if (results.length === 0) {
+              return false;
+            }
+
+            const lastResult = results[results.length - 1] as Record<string, unknown>;
+            const status = lastResult.status;
+            return status === "failed" || status === "timedOut" || status === "interrupted";
+          });
+
+          if (hasFailedTest && specFile) {
+            failedSpecFiles.push(normalizePath(specFile));
+          }
         }
+      }
 
-        const runRecord = run as Record<string, unknown>;
-        const specRecord =
-          typeof runRecord.spec === "object" && runRecord.spec
-            ? (runRecord.spec as Record<string, unknown>)
-            : undefined;
-        const specRelative =
-          specRecord && typeof specRecord.relative === "string" ? specRecord.relative : undefined;
+      if (Array.isArray(suiteRecord.suites)) {
+        for (const nested of suiteRecord.suites) {
+          if (typeof nested !== "object" || nested === null) {
+            continue;
+          }
 
-        const tests = Array.isArray(runRecord.tests)
-          ? runRecord.tests.filter((test) => typeof test === "object" && test !== null)
-          : [];
-
-        const hasFailedTest = tests.some((test) => {
-          const testRecord = test as Record<string, unknown>;
-          return testRecord.state === "failed";
-        });
-
-        if (hasFailedTest && specRelative) {
-          failedSpecFiles.push(normalizePath(specRelative));
+          walkSuite(nested as Record<string, unknown>, suiteFile);
         }
       }
     }
 
-    if (Array.isArray(record.failures)) {
-      for (const failure of record.failures) {
-        if (typeof failure !== "object" || failure === null) {
+    if (Array.isArray(record.suites)) {
+      for (const suite of record.suites) {
+        if (typeof suite !== "object" || suite === null) {
           continue;
         }
 
-        const failureRecord = failure as Record<string, unknown>;
-        const file = failureRecord.file;
-        if (typeof file === "string" && file.length > 0) {
-          failedSpecFiles.push(normalizePath(file));
-          continue;
-        }
-
-        const errRecord =
-          typeof failureRecord.err === "object" && failureRecord.err
-            ? (failureRecord.err as Record<string, unknown>)
-            : undefined;
-        const parsedStack = errRecord?.parsedStack;
-
-        if (Array.isArray(parsedStack)) {
-          for (const frame of parsedStack) {
-            if (typeof frame !== "object" || frame === null) {
-              continue;
-            }
-
-            const relativeFile = (frame as Record<string, unknown>).relativeFile;
-            if (typeof relativeFile === "string" && relativeFile.startsWith("cypress/")) {
-              failedSpecFiles.push(normalizePath(relativeFile));
-              break;
-            }
-          }
-        }
+        walkSuite(suite as Record<string, unknown>);
       }
     }
 
@@ -113,25 +113,35 @@ export async function collectArtifacts(
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const { config: toolingConfig } = await loadToolingConfig(repoRoot);
 
-  const screenshotsDir = resolveFromRepoRoot(
+  const testResultsDir = resolveFromRepoRoot(
     repoRoot,
-    input.screenshotsDir ?? toolingConfig.cypress.screenshotsDir,
+    input.screenshotsDir ?? toolingConfig.playwright.testResultsDir,
   );
-  const videosDir = resolveFromRepoRoot(repoRoot, input.videosDir ?? toolingConfig.cypress.videosDir);
-  const resultsDir = resolveFromRepoRoot(repoRoot, input.resultsDir ?? toolingConfig.cypress.resultsDir);
-  const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.cypress.reportPath);
+  const tracesDir = resolveFromRepoRoot(
+    repoRoot,
+    input.videosDir ?? toolingConfig.playwright.tracesDir,
+  );
+  const resultsDir = resolveFromRepoRoot(repoRoot, input.resultsDir ?? toolingConfig.playwright.resultsDir);
+  const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.playwright.reportPath);
 
-  const [screenshotsAbs, videosAbs, reportsAbs] = await Promise.all([
-    listIfExists(screenshotsDir),
-    listIfExists(videosDir),
+  const [testResultsAbs, tracesAbs, reportsAbs] = await Promise.all([
+    listIfExists(testResultsDir),
+    listIfExists(tracesDir),
     listIfExists(resultsDir),
   ]);
   const failedSpecFiles = await readFailedSpecFiles(reportPath);
 
   const toRelative = (filePath: string): string => normalizePath(path.relative(repoRoot, filePath));
 
-  const screenshots = toSortedUnique(screenshotsAbs.map(toRelative));
-  const videos = toSortedUnique(videosAbs.map(toRelative));
+  const testResultsRelative = testResultsAbs.map(toRelative);
+  const tracesRelative = tracesAbs.map(toRelative);
+
+  const screenshots = toSortedUnique(
+    testResultsRelative.filter((artifactPath) => /\.(png|jpg|jpeg)$/i.test(artifactPath)),
+  );
+  const videos = toSortedUnique(
+    [...testResultsRelative, ...tracesRelative].filter((artifactPath) => /\.(webm|mp4)$/i.test(artifactPath)),
+  );
   const reports = toSortedUnique(reportsAbs.map(toRelative));
 
   const failedSpecBasenames = toSortedUnique(
@@ -162,11 +172,11 @@ export async function collectArtifacts(
   }
 
   const missingDirectories: string[] = [];
-  if (!(await fileExists(screenshotsDir))) {
-    missingDirectories.push(screenshotsDir);
+  if (!(await fileExists(testResultsDir))) {
+    missingDirectories.push(testResultsDir);
   }
-  if (!(await fileExists(videosDir))) {
-    missingDirectories.push(videosDir);
+  if (!(await fileExists(tracesDir))) {
+    missingDirectories.push(tracesDir);
   }
   if (!(await fileExists(resultsDir))) {
     missingDirectories.push(resultsDir);

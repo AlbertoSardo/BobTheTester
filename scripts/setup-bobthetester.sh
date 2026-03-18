@@ -84,6 +84,9 @@ fi
 if [[ "${SKIP_INSTALL}" != "true" ]]; then
   echo "[bobthetester] Installing dependencies..."
   npm --prefix "${MCP_PACKAGE_DIR}" install
+
+  echo "[bobthetester] Installing Playwright browser runtime (chromium)..."
+  npm --prefix "${MCP_PACKAGE_DIR}" exec playwright install chromium
 fi
 
 if [[ "${SKIP_BUILD}" != "true" ]]; then

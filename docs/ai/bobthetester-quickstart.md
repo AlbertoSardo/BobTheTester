@@ -49,13 +49,13 @@ The custom slash command is in `.claude/commands/bobthetester.md`.
 
 Examples:
 - `/bobthetester`
-- `/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}`
+- `/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}`
 
 Behavior:
 - loads conceptual policy with `read_business_review_policy`
 - runs deterministic one-shot pipeline with `generate_unified_review` on one shared scope
 - includes full `generate_regression_review` and `generate_code_review_report` outputs in one JSON
-- skips Cypress execution when no impacted specs are selected (no implicit full-suite fallback)
+- skips Playwright execution when no impacted specs are selected (no implicit full-suite fallback)
 - asks targeted questions only if required context is missing
 
 To force a suite refresh before review:
@@ -71,7 +71,7 @@ Structured output with:
 - mapping details (`fileToFlows`, `unmappedFiles`)
 - impacted flows
 - suite generation summary
-- selected Cypress specs
+- selected Playwright specs
 - pass/fail summary
 - failed tests
 - artifact paths

@@ -4,9 +4,9 @@ Initial MCP server skeleton for deterministic regression review workflows.
 
 ## Scope
 - Deterministic tools only; no business reasoning in tool handlers.
-- Static JSON mapping for changed paths -> business flows -> Cypress specs.
-- Cypress execution is safe-by-default (`dryRun: true` unless explicitly disabled).
-- Cypress runs emit machine-readable JSON reports at `artifacts/cypress/results.json`.
+- Static JSON mapping for changed paths -> business flows -> Playwright specs.
+- Playwright execution is safe-by-default (`dryRun: true` unless explicitly disabled).
+- Playwright runs emit machine-readable JSON reports at `artifacts/playwright/results.json`.
 
 ## Tooling config
 - `config/regression/flow-map.json`
@@ -18,6 +18,7 @@ Initial MCP server skeleton for deterministic regression review workflows.
 ## Local development
 ```bash
 npm install
+npm exec playwright install chromium
 npm run typecheck
 npm run build
 ```
@@ -40,13 +41,13 @@ npm run tool -- map_impacted_flows '{"changedFiles":["src/settings/profile/form.
 
 ## Generate structured regression review output
 ```bash
-npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"electron"}'
+npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
 `review` is one-shot and deterministic: it maps changed files, generates/updates impacted-flow suite coverage,
-validates suite completeness, selects relevant specs, runs Cypress locally, and returns a comprehensive JSON result.
+validates suite completeness, selects relevant specs, runs Playwright locally, and returns a comprehensive JSON result.
 
-If no specs are selected, Cypress execution is skipped intentionally (no implicit full-suite fallback).
+If no specs are selected, Playwright execution is skipped intentionally (no implicit full-suite fallback).
 
 ## Generate structured code-review output
 ```bash
@@ -64,7 +65,7 @@ npm run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","dryRun":fa
 `unified-review` runs deterministic regression + code-review in one command and returns
 one combined output with `overallRiskLevel`, `qualityGates`, and consolidated actions.
 
-## Generate/refresh complete Cypress suite from policy
+## Generate/refresh complete Playwright suite from policy
 ```bash
 npm run suite -- '{}'
 ```
@@ -72,7 +73,7 @@ npm run suite -- '{}'
 Validate suite completeness:
 
 ```bash
-npm run tool -- validate_cypress_suite '{}'
+npm run tool -- validate_playwright_suite '{}'
 ```
 
 Review output format schema:
@@ -90,11 +91,11 @@ Unified output format schema:
 ## Implemented tool names
 - `get_changed_files`
 - `map_impacted_flows`
-- `list_relevant_cypress_specs`
-- `generate_cypress_suite`
-- `validate_cypress_suite`
-- `run_cypress`
-- `read_cypress_report`
+- `list_relevant_playwright_specs`
+- `generate_playwright_suite`
+- `validate_playwright_suite`
+- `run_playwright`
+- `read_playwright_report`
 - `collect_artifacts`
 - `suggest_missing_tests`
 - `read_business_review_policy`

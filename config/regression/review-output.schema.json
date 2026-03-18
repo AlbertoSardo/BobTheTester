@@ -141,12 +141,12 @@
     "passFailSummary": {
       "type": "object",
       "required": [
-        "cypressStatus",
+        "runnerStatus",
         "exitCode",
         "totals"
       ],
       "properties": {
-        "cypressStatus": {
+        "runnerStatus": {
           "type": "string",
           "enum": [
             "skipped",
@@ -326,7 +326,7 @@
           "enum": [
             "json",
             "junit",
-            "text"
+            "line"
           ]
         },
         "startedAt": {

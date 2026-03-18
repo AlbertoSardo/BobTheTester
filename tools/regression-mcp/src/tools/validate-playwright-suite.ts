@@ -11,9 +11,9 @@ import {
 } from "../config.js";
 import type {
   JsonValue,
-  ValidateCypressSuiteFlowResult,
-  ValidateCypressSuiteInput,
-  ValidateCypressSuiteOutput,
+  ValidatePlaywrightSuiteFlowResult,
+  ValidatePlaywrightSuiteInput,
+  ValidatePlaywrightSuiteOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
 
@@ -53,7 +53,8 @@ function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, 
 
 function extractCoverageTitles(specContent: string): string[] {
   const coverageTitles: string[] = [];
-  const testTitlePattern = /\bit\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
+  const testTitlePattern =
+    /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
@@ -71,9 +72,9 @@ function isConcreteSpecPath(specPath: string): boolean {
   return !specPath.includes("*") && !specPath.includes("?");
 }
 
-export async function validateCypressSuite(
-  input: ValidateCypressSuiteInput = {},
-): Promise<ValidateCypressSuiteOutput> {
+export async function validatePlaywrightSuite(
+  input: ValidatePlaywrightSuiteInput = {},
+): Promise<ValidatePlaywrightSuiteOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const policyPath = input.policyPath ?? DEFAULT_BUSINESS_POLICY_PATH;
   const flowSpecMapPath = input.flowSpecMapPath ?? DEFAULT_FLOW_SPEC_MAP_PATH;
@@ -97,7 +98,7 @@ export async function validateCypressSuite(
   }
 
   const targetFlows = requestedFlows.filter((flowId) => knownFlows.includes(flowId));
-  const flowResults: ValidateCypressSuiteFlowResult[] = [];
+  const flowResults: ValidatePlaywrightSuiteFlowResult[] = [];
 
   for (const flowId of targetFlows) {
     const requiredScenarios = coverageByFlow[flowId] ?? [];
@@ -149,7 +150,7 @@ export async function validateCypressSuite(
     .sort((a, b) => a.localeCompare(b));
 
   return {
-    tool: "validate_cypress_suite",
+    tool: "validate_playwright_suite",
     policyPath: resolvedPolicyPath,
     flowSpecMapPath: resolvedFlowSpecMapPath,
     targetFlows,

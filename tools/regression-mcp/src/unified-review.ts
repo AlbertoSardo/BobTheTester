@@ -47,7 +47,7 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
   }
 
   if (review.passFailSummary.totals.failed > 0) {
-    actions.push("Fix failing Cypress tests before merge.");
+    actions.push("Fix failing Playwright tests before merge.");
   }
 
   if (review.suggestedMissingTests.unmappedFiles.length > 0) {
@@ -55,14 +55,14 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
   }
 
   if (review.suggestedMissingTests.flowsWithoutSpecs.length > 0) {
-    actions.push("Add Cypress specs for impacted flows that currently have no mapped spec files.");
+    actions.push("Add Playwright specs for impacted flows that currently have no mapped spec files.");
   }
 
   if (review.suggestedMissingTests.suggestions.length > 0) {
     actions.push("Review and address deterministic missing-test suggestions from the regression analysis.");
   }
 
-  if (review.passFailSummary.cypressStatus === "skipped" && review.impactedFlows.length > 0) {
+  if (review.passFailSummary.runnerStatus === "skipped" && review.impactedFlows.length > 0) {
     actions.push("Investigate why impacted flows produced no selected specs before merge.");
   }
 

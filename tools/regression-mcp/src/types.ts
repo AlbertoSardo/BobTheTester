@@ -1,11 +1,11 @@
 export type ToolName =
   | "get_changed_files"
   | "map_impacted_flows"
-  | "list_relevant_cypress_specs"
-  | "generate_cypress_suite"
-  | "validate_cypress_suite"
-  | "run_cypress"
-  | "read_cypress_report"
+  | "list_relevant_playwright_specs"
+  | "generate_playwright_suite"
+  | "validate_playwright_suite"
+  | "run_playwright"
+  | "read_playwright_report"
   | "collect_artifacts"
   | "suggest_missing_tests"
   | "read_business_review_policy"
@@ -53,15 +53,16 @@ export interface ToolingConfig {
     defaultBaseRef: string;
     defaultHeadRef: string;
   };
-  cypress: {
+  playwright: {
     command: string;
     commandArgs: string[];
-    defaultBrowser: string;
+    defaultProject: string;
     configFile: string;
-    reportFormat: "json" | "junit" | "text";
+    reportFormat: "json" | "junit" | "line";
     reportPath: string;
-    screenshotsDir: string;
-    videosDir: string;
+    testResultsDir: string;
+    htmlReportDir: string;
+    tracesDir: string;
     resultsDir: string;
   };
 }
@@ -101,21 +102,21 @@ export interface MapImpactedFlowsOutput extends BaseToolResponse {
   unmappedFiles: string[];
 }
 
-export interface ListRelevantCypressSpecsInput {
+export interface ListRelevantPlaywrightSpecsInput {
   impactedFlowIds: string[];
   flowSpecMapPath?: string;
   repoRoot?: string;
 }
 
-export interface ListRelevantCypressSpecsOutput extends BaseToolResponse {
-  tool: "list_relevant_cypress_specs";
+export interface ListRelevantPlaywrightSpecsOutput extends BaseToolResponse {
+  tool: "list_relevant_playwright_specs";
   flowSpecMapPath: string;
   resolvedSpecs: string[];
   flowToSpecs: Record<string, string[]>;
   flowsWithoutSpecs: string[];
 }
 
-export interface GenerateCypressSuiteInput {
+export interface GeneratePlaywrightSuiteInput {
   flows?: string[];
   updateMapping?: boolean;
   policyPath?: string;
@@ -123,8 +124,8 @@ export interface GenerateCypressSuiteInput {
   repoRoot?: string;
 }
 
-export interface GenerateCypressSuiteOutput extends BaseToolResponse {
-  tool: "generate_cypress_suite";
+export interface GeneratePlaywrightSuiteOutput extends BaseToolResponse {
+  tool: "generate_playwright_suite";
   policyPath: string;
   flowSpecMapPath: string;
   targetFlows: string[];
@@ -135,14 +136,14 @@ export interface GenerateCypressSuiteOutput extends BaseToolResponse {
   generatedTestsByFlow: Record<string, string[]>;
 }
 
-export interface ValidateCypressSuiteInput {
+export interface ValidatePlaywrightSuiteInput {
   flows?: string[];
   policyPath?: string;
   flowSpecMapPath?: string;
   repoRoot?: string;
 }
 
-export interface ValidateCypressSuiteFlowResult {
+export interface ValidatePlaywrightSuiteFlowResult {
   flowId: string;
   requiredScenarios: string[];
   coveredScenarios: string[];
@@ -151,36 +152,36 @@ export interface ValidateCypressSuiteFlowResult {
   missingSpecFiles: string[];
 }
 
-export interface ValidateCypressSuiteOutput extends BaseToolResponse {
-  tool: "validate_cypress_suite";
+export interface ValidatePlaywrightSuiteOutput extends BaseToolResponse {
+  tool: "validate_playwright_suite";
   policyPath: string;
   flowSpecMapPath: string;
   targetFlows: string[];
   isComplete: boolean;
   incompleteFlows: string[];
-  flowResults: ValidateCypressSuiteFlowResult[];
+  flowResults: ValidatePlaywrightSuiteFlowResult[];
 }
 
-export interface RunCypressInput {
+export interface RunPlaywrightInput {
   specs: string[];
   dryRun?: boolean;
   headed?: boolean;
   browser?: string;
   configFile?: string;
   reportPath?: string;
-  reportFormat?: "json" | "junit" | "text";
+  reportFormat?: "json" | "junit" | "line";
   extraArgs?: string[];
   repoRoot?: string;
 }
 
-export interface RunCypressOutput extends BaseToolResponse {
-  tool: "run_cypress";
+export interface RunPlaywrightOutput extends BaseToolResponse {
+  tool: "run_playwright";
   dryRun: boolean;
   command: string[];
   cwd: string;
-   specs: string[];
-   reportPath: string;
-   reportFormat: "json" | "junit" | "text";
+  specs: string[];
+  reportPath: string;
+  reportFormat: "json" | "junit" | "line";
   startedAt: string;
   finishedAt: string;
   durationMs: number;
@@ -190,16 +191,16 @@ export interface RunCypressOutput extends BaseToolResponse {
   stderr: string;
 }
 
-export interface ReadCypressReportInput {
+export interface ReadPlaywrightReportInput {
   reportPath?: string;
-  reportFormat?: "json" | "junit" | "text";
+  reportFormat?: "json" | "junit" | "line";
   repoRoot?: string;
 }
 
-export interface ReadCypressReportOutput extends BaseToolResponse {
-  tool: "read_cypress_report";
+export interface ReadPlaywrightReportOutput extends BaseToolResponse {
+  tool: "read_playwright_report";
   reportPath: string;
-  reportFormat: "json" | "junit" | "text";
+  reportFormat: "json" | "junit" | "line";
   status: "parsed" | "missing" | "invalid" | "stub";
   totals: {
     tests: number;
@@ -336,7 +337,7 @@ export interface RegressionReviewInput {
   browser?: string;
   configFile?: string;
   reportPath?: string;
-  reportFormat?: "json" | "junit" | "text";
+  reportFormat?: "json" | "junit" | "line";
   extraArgs?: string[];
   repoRoot?: string;
 }
@@ -366,7 +367,7 @@ export interface RegressionReviewOutput {
   };
   selectedSpecs: string[];
   passFailSummary: {
-    cypressStatus: "skipped" | "passed" | "failed";
+    runnerStatus: "skipped" | "passed" | "failed";
     exitCode: number | null;
     totals: {
       tests: number;
@@ -398,7 +399,7 @@ export interface RegressionReviewOutput {
   execution: {
     command: string[];
     reportPath: string;
-    reportFormat: "json" | "junit" | "text";
+    reportFormat: "json" | "junit" | "line";
     startedAt: string;
     finishedAt: string;
     durationMs: number;

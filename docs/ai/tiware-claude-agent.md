@@ -46,7 +46,7 @@ Obiettivo: review tecnica + concettuale (business flow) con non-regression mirat
 Regole:
 - Prima di analizzare i risultati, usa `read_business_review_policy` per caricare i criteri concettuali.
 - Usa il tool MCP `generate_unified_review` come entrypoint one-shot (include regression + code-review sullo stesso scope).
-- Se non ci sono spec impattate, mantieni `cypressStatus: skipped` (nessun fallback implicito a full-suite).
+- Se non ci sono spec impattate, mantieni `runnerStatus: skipped` (nessun fallback implicito a full-suite).
 - Se mancano dati essenziali, fai al massimo 3 domande mirate.
 - Se non sei bloccato, non fare domande e procedi.
 - Mantieni le conclusioni deterministiche e collegate all'output dei tool.
@@ -81,7 +81,7 @@ Il comportamento multi-agent viene orchestrato nel prompt (non nel layer tool):
 
 - `technical-reviewer`: qualità tecnica e rischio implementativo
 - `product-flow-reviewer`: impatto sui flussi utente/business
-- `regression-runner`: selezione/esecuzione test Cypress mirati
+- `regression-runner`: selezione/esecuzione test Playwright mirati
 - `synthesizer`: sintesi finale con priorità e azioni
 
 ## 6) Fallback locale senza client MCP
@@ -89,7 +89,7 @@ Se vuoi testare subito il comportamento senza integrare Claude Desktop:
 
 ```bash
 npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
-npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}'
+npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}'
 ```
 
 Questo produce lo stesso output strutturato che Claude dovrebbe usare come base oggettiva.
@@ -103,7 +103,7 @@ Uso:
 
 ```text
 /bobthetester
-/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"electron"}
+/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}
 ```
 
 Il comando e` progettato per:

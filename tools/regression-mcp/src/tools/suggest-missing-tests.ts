@@ -24,7 +24,7 @@ export async function suggestMissingTests(
 
   for (const flowId of flowsWithoutSpecs) {
     suggestions.push(
-      `Flow '${flowId}' has no mapped Cypress specs. Add entries to config/regression/flow-spec-map.json.`,
+      `Flow '${flowId}' has no mapped Playwright specs. Add entries to config/regression/flow-spec-map.json.`,
     );
   }
 
