@@ -14,10 +14,14 @@ import type {
   GeneratePlaywrightSuiteInput,
   GeneratePlaywrightSuiteOutput,
   JsonValue,
+  ScenarioImplementationStatus,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-
-const COVERAGE_TITLE_PREFIX = "covers: ";
+import {
+  buildCoverageTitle,
+  parseCoverageTitle,
+  toScenarioId,
+} from "../utils/scaffold.js";
 
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
@@ -29,6 +33,18 @@ function toRelative(repoRoot: string, absolutePath: string): string {
 
 function escapeDoubleQuotedString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function escapeForQuote(value: string, quote: '"' | "'" | "`"): string {
+  if (quote === '"') {
+    return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  if (quote === "'") {
+    return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+
+  return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
 }
 
 function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
@@ -64,34 +80,123 @@ function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, 
   return coverageByFlow;
 }
 
-function extractExistingTestTitles(specContent: string): Set<string> {
-  const titles = new Set<string>();
-  const testTitlePattern = /\b(?:test|it)\s*\(\s*(["'`])(.+?)\1\s*,/g;
+interface ExistingCoverageEntry {
+  scenarioId: string;
+  status: ScenarioImplementationStatus;
+}
+
+function extractExistingCoverageEntries(
+  specContent: string,
+  flowId: string,
+): Record<string, ExistingCoverageEntry> {
+  const entries: Record<string, ExistingCoverageEntry> = {};
+  const testTitlePattern =
+    /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
-    titles.add(match[2]);
+    const title = match[1] ?? match[2] ?? match[3] ?? "";
+    const parsed = parseCoverageTitle(title);
+
+    if (!parsed) {
+      match = testTitlePattern.exec(specContent);
+      continue;
+    }
+
+    const status = parsed.status ?? "scaffold";
+    const scenarioId = parsed.scenarioId ?? toScenarioId(flowId, parsed.scenarioTitle);
+    const current = entries[parsed.scenarioTitle];
+
+    if (!current || current.status !== "implemented" || status === "implemented") {
+      entries[parsed.scenarioTitle] = {
+        scenarioId,
+        status,
+      };
+    }
+
     match = testTitlePattern.exec(specContent);
   }
 
-  return titles;
+  return entries;
 }
 
-function createCoverageTestBlock(flowId: string, scenario: string): string {
+function normalizeCoverageTitles(
+  specContent: string,
+  flowId: string,
+  requiredScenarios: Set<string>,
+  existingEntries: Record<string, ExistingCoverageEntry>,
+): { content: string; updated: boolean } {
+  let updated = false;
+
+  const testCallPattern =
+    /\b((?:test|it)\s*\(\s*)(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)(\s*,)/g;
+
+  const content = specContent.replace(
+    testCallPattern,
+    (match, prefix: string, doubleQuoted: string, singleQuoted: string, templateQuoted: string, suffix: string) => {
+      const originalTitle = doubleQuoted ?? singleQuoted ?? templateQuoted ?? "";
+      const quote: '"' | "'" | "`" =
+        typeof doubleQuoted === "string"
+          ? '"'
+          : typeof singleQuoted === "string"
+            ? "'"
+            : "`";
+
+      const parsed = parseCoverageTitle(originalTitle);
+      if (!parsed || !requiredScenarios.has(parsed.scenarioTitle)) {
+        return match;
+      }
+
+      const existingEntry = existingEntries[parsed.scenarioTitle];
+      const normalizedScenarioId =
+        existingEntry?.scenarioId ?? parsed.scenarioId ?? toScenarioId(flowId, parsed.scenarioTitle);
+      const normalizedStatus = existingEntry?.status ?? parsed.status ?? "scaffold";
+      const normalizedTitle = buildCoverageTitle(
+        parsed.scenarioTitle,
+        normalizedScenarioId,
+        normalizedStatus,
+      );
+
+      if (normalizedTitle === originalTitle) {
+        return match;
+      }
+
+      updated = true;
+      return `${prefix}${quote}${escapeForQuote(normalizedTitle, quote)}${quote}${suffix}`;
+    },
+  );
+
+  return { content, updated };
+}
+
+function createCoverageTestBlock(
+  flowId: string,
+  scenario: string,
+  scenarioId: string,
+  status: ScenarioImplementationStatus,
+): string {
   const escapedFlowId = escapeDoubleQuotedString(flowId);
-  const escapedScenario = escapeDoubleQuotedString(scenario);
-  const title = `${COVERAGE_TITLE_PREFIX}${escapedScenario}`;
+  const escapedScenarioId = escapeDoubleQuotedString(scenarioId);
+  const title = escapeDoubleQuotedString(buildCoverageTitle(scenario, scenarioId, status));
 
   return [
     `  test("${title}", async () => {`,
-    `    const context = { flow: "${escapedFlowId}", scenario: "${escapedScenario}" };`,
-    `    expect(context.flow).toBe("${escapedFlowId}");`,
+    "    const scenarioMeta = {",
+    `      flowId: "${escapedFlowId}",`,
+    `      scenarioId: "${escapedScenarioId}",`,
+    `      implementationStatus: "${status}" as const,`,
+    "    };",
+    "",
+    `    expect(scenarioMeta.flowId).toBe("${escapedFlowId}");`,
+    `    expect(scenarioMeta.implementationStatus).toBe("${status}");`,
     "  });",
   ].join("\n");
 }
 
 function appendCoverageTests(specContent: string, missingScenarios: string[], flowId: string): string {
-  const blocks = missingScenarios.map((scenario) => createCoverageTestBlock(flowId, scenario));
+  const blocks = missingScenarios.map((scenario) =>
+    createCoverageTestBlock(flowId, scenario, toScenarioId(flowId, scenario), "scaffold"),
+  );
   const trimmed = specContent.trimEnd();
   const closingIndex = trimmed.lastIndexOf("\n});");
 
@@ -104,12 +209,32 @@ function appendCoverageTests(specContent: string, missingScenarios: string[], fl
   return `${beforeClosing}\n\n${blocks.join("\n\n")}\n${closingPart}\n`;
 }
 
+function createPlaceholderTestBlock(flowId: string): string {
+  const escapedFlowId = escapeDoubleQuotedString(flowId);
+  const anchor = escapeDoubleQuotedString(flowId.split("-")[0] || flowId);
+
+  return [
+    `  test("loads deterministic ${escapedFlowId} scaffold placeholder", async () => {`,
+    '    if (process.env.FORCE_FAIL === "1") {',
+    '      throw new Error("Forced failure for artifact validation");',
+    "    }",
+    "",
+    `    expect("${escapedFlowId}").toContain("${anchor}");`,
+    "  });",
+  ].join("\n");
+}
+
 function createNewSpecContent(flowId: string, scenarios: string[]): string {
-  const tests = scenarios.map((scenario) => createCoverageTestBlock(flowId, scenario));
+  const tests = scenarios.map((scenario) =>
+    createCoverageTestBlock(flowId, scenario, toScenarioId(flowId, scenario), "scaffold"),
+  );
+
   return [
     'import { expect, test } from "@playwright/test";',
     "",
     `test.describe("${escapeDoubleQuotedString(flowId)} flow", () => {`,
+    createPlaceholderTestBlock(flowId),
+    "",
     tests.join("\n\n"),
     "});",
     "",
@@ -182,7 +307,9 @@ export async function generatePlaywrightSuite(
       );
     }
 
-    generatedTestsByFlow[flowId] = scenarios.map((scenario) => `${COVERAGE_TITLE_PREFIX}${scenario}`);
+    generatedTestsByFlow[flowId] = scenarios.map((scenario) =>
+      buildCoverageTitle(scenario, toScenarioId(flowId, scenario), "scaffold"),
+    );
 
     const mappedSpecPaths = toSortedUnique(flowToSpecs[flowId] ?? []);
     let selectedSpecPath = pickConcreteSpecPath(mappedSpecPaths);
@@ -207,17 +334,28 @@ export async function generatePlaywrightSuite(
     }
 
     const existingSpecContent = await readFile(selectedSpecAbsolutePath, "utf-8");
-    const existingTestTitles = extractExistingTestTitles(existingSpecContent);
-    const missingScenarios = scenarios.filter(
-      (scenario) => !existingTestTitles.has(`${COVERAGE_TITLE_PREFIX}${scenario}`),
+    const existingCoverageEntries = extractExistingCoverageEntries(existingSpecContent, flowId);
+    const requiredScenarioSet = new Set(scenarios);
+
+    const normalized = normalizeCoverageTitles(
+      existingSpecContent,
+      flowId,
+      requiredScenarioSet,
+      existingCoverageEntries,
     );
 
-    if (missingScenarios.length === 0) {
+    const coverageEntriesAfterNormalization = extractExistingCoverageEntries(normalized.content, flowId);
+    const missingScenarios = scenarios.filter(
+      (scenario) =>
+        !Object.prototype.hasOwnProperty.call(coverageEntriesAfterNormalization, scenario),
+    );
+
+    if (missingScenarios.length === 0 && !normalized.updated) {
       unchangedSpecFiles.push(relativeSpecPath);
       continue;
     }
 
-    const updatedSpecContent = appendCoverageTests(existingSpecContent, missingScenarios, flowId);
+    const updatedSpecContent = appendCoverageTests(normalized.content, missingScenarios, flowId);
     await writeFile(selectedSpecAbsolutePath, updatedSpecContent, "utf-8");
     updatedSpecFiles.push(relativeSpecPath);
   }

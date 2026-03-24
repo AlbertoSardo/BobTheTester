@@ -74,6 +74,10 @@ Generate or refresh complete suite coverage from policy:
 npm --prefix tools/regression-mcp run tool -- generate_playwright_suite '{}'
 ```
 
+Generated/updated coverage tests include deterministic markers in title:
+- `[scenario-id:<flow.slug>]`
+- `[status:scaffold|implemented]`
+
 Only selected flows:
 
 ```bash
@@ -92,6 +96,9 @@ Validate if policy-required suite coverage is complete:
 ```bash
 npm --prefix tools/regression-mcp run tool -- validate_playwright_suite '{}'
 ```
+
+With scaffold-first policy, `isComplete` is `false` when impacted flows still have
+scenario tests marked as `[status:scaffold]`.
 
 Validate selected flows only:
 
@@ -127,6 +134,13 @@ npm --prefix tools/regression-mcp run tool -- collect_artifacts '{}'
 npm --prefix tools/regression-mcp run tool -- suggest_missing_tests '{"impactedFlowIds":["profile-edit","billing"],"unmappedFiles":["src/billing/invoice.ts"]}'
 ```
 
+### `suggest_policy_clarifications`
+Returns deterministic, targeted questions when policy details are insufficient to implement real Playwright checks.
+
+```bash
+npm --prefix tools/regression-mcp run tool -- suggest_policy_clarifications '{"flows":["user-onboarding"]}'
+```
+
 ### `read_business_review_policy`
 ```bash
 npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
@@ -143,6 +157,8 @@ This one-shot command now includes deterministic sub-steps for impacted flows:
 - Playwright execution only on selected specs
 
 If no specs are selected, Playwright execution is skipped intentionally (no implicit full-suite run).
+If selected specs pass but impacted scenarios are still scaffold-only, regression risk remains `high` and gate fails.
+If policy execution details are missing, the output includes `clarificationQuestions` to drive proactive follow-up with the user.
 
 ### `generate_unified_review`
 ```bash
@@ -188,6 +204,14 @@ Deterministic mapping lives in:
 - `config/regression/flow-spec-map.json` (`flow IDs -> Playwright spec paths`)
 - `config/regression/business-review-policy.json` (criteri concettuali e product-flow review)
 
+Optional policy fields for portable cross-project execution:
+- `playwrightContext.baseUrl`
+- `playwrightContext.authStrategy`
+- `flows.<flowId>.executionHints.entryPath`
+- `flows.<flowId>.executionHints.primaryActor`
+
+`suggest_policy_clarifications` treats placeholder values (`<set-...>`, `TODO`, `TBD`, `to confirm`) as unclear and returns targeted follow-up questions.
+
 Human-readable mirror:
 
 - `docs/flows/test-mapping.json`
@@ -231,6 +255,7 @@ The `review` command (regression-only diagnostic path) returns:
 - `failedTests`
 - `artifactPaths`
 - `suggestedMissingTests`
+- `clarificationQuestions`
 - `riskLevel`
 
 Schema:
@@ -266,8 +291,9 @@ Example (shape only):
     "mappingUpdated": false
   },
   "suiteCompleteness": {
-    "isComplete": true,
-    "incompleteFlows": []
+    "isComplete": false,
+    "incompleteFlows": ["profile-edit"],
+    "scaffoldFlows": ["profile-edit"]
   },
   "selectedSpecs": ["playwright/e2e/flows/profile-edit.spec.ts"],
   "passFailSummary": {
@@ -295,15 +321,34 @@ Example (shape only):
     "unmappedFiles": [],
     "suggestions": []
   },
-  "riskLevel": "low"
+  "clarificationQuestions": [
+    {
+      "id": "global.base-url",
+      "priority": "high",
+      "blocking": true,
+      "question": "What base URL/environment should Playwright use for business-flow execution?",
+      "rationale": "Executable flow tests need a deterministic target environment to avoid testing the wrong deployment."
+    }
+  ],
+  "riskLevel": "high"
 }
 ```
 
 ## Interpret the output
 - `riskLevel=low`: impacted flows mapped, specs selected, and no failures.
 - `riskLevel=medium`: missing mappings/spec coverage or regression run skipped for impacted flows.
-- `riskLevel=high`: test failures, or impacted flows with no selected specs.
+- `riskLevel=high`: test failures, impacted flows with no selected specs, or scaffold-only impacted scenarios.
 - `riskLevel=critical`: failures + coverage gaps at the same time.
+
+`clarificationQuestions` include:
+- `priority` (`high|medium|low`)
+- `blocking` (`true` means policy gap blocks deterministic gating)
+- targeted question text and rationale
+
+To promote one scenario from scaffold to implemented:
+1. replace placeholder logic in that Playwright test with real app assertions
+2. change title marker from `[status:scaffold]` to `[status:implemented]`
+3. rerun `validate_playwright_suite` and `unified-review`
 
 For code-review output:
 - `riskLevel=low`: no deterministic findings.

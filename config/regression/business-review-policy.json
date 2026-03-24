@@ -1,9 +1,9 @@
 {
   "version": 1,
   "policyName": "tiware-business-review-policy",
-  "lastUpdated": "2026-03-16",
+  "lastUpdated": "2026-03-23",
   "owners": {
-    "product": "Giuseppe (to confirm)",
+    "product": "TIware product owner",
     "engineering": "TIware platform team"
   },
   "scope": {
@@ -14,6 +14,12 @@
       "profile-edit",
       "permission-change"
     ]
+  },
+  "playwrightContext": {
+    "baseUrl": "<set-project-base-url>",
+    "authStrategy": "<set-auth-strategy>",
+    "testDataStrategy": "seeded-fixtures",
+    "notes": "Replace placeholder values during project onboarding. Placeholder/TODO/TBD values trigger deterministic clarification questions."
   },
   "globalPrinciples": [
     {
@@ -84,7 +90,12 @@
         "Happy path account creation",
         "Validation error and recovery path",
         "Persistence check for new/edited onboarding fields"
-      ]
+      ],
+      "executionHints": {
+        "entryPath": "<set-entry-path-for-user-onboarding>",
+        "primaryActor": "<set-primary-actor-for-user-onboarding>",
+        "expectedOutcome": "Account is created and can access default experience."
+      }
     },
     "user-offboarding": {
       "userGoal": "Remove or deactivate access safely while preserving required auditability.",
@@ -107,7 +118,12 @@
         "Successful access revocation",
         "Attempted access after offboarding is denied",
         "Audit metadata is present"
-      ]
+      ],
+      "executionHints": {
+        "entryPath": "<set-entry-path-for-user-offboarding>",
+        "primaryActor": "<set-primary-actor-for-user-offboarding>",
+        "expectedOutcome": "Access is revoked and audit trail is available."
+      }
     },
     "profile-edit": {
       "userGoal": "Allow users or operators to update profile data safely and predictably.",
@@ -130,7 +146,12 @@
         "Successful edit and reload verification",
         "Validation failure path",
         "Edge case with optional/empty fields"
-      ]
+      ],
+      "executionHints": {
+        "entryPath": "<set-entry-path-for-profile-edit>",
+        "primaryActor": "<set-primary-actor-for-profile-edit>",
+        "expectedOutcome": "Profile updates persist and validation is enforced."
+      }
     },
     "permission-change": {
       "userGoal": "Apply role/permission updates with clear security boundaries.",
@@ -153,7 +174,12 @@
         "Grant and revoke path",
         "Denied action for unauthorized role",
         "Effective permission check after update"
-      ]
+      ],
+      "executionHints": {
+        "entryPath": "<set-entry-path-for-permission-change>",
+        "primaryActor": "<set-primary-actor-for-permission-change>",
+        "expectedOutcome": "Permission updates are enforced with least privilege."
+      }
     }
   },
   "requiredReviewOutput": {
@@ -167,7 +193,8 @@
     ]
   },
   "openPolicyQuestions": [
-    "Confirm product owner for policy approval",
+    "Replace Playwright context placeholders with project-specific values",
+    "Replace flow execution hint placeholders with project-specific values",
     "Define acceptable reversibility for offboarding",
     "Define SLA for fixing high/critical review findings"
   ]

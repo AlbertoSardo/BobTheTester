@@ -6,6 +6,7 @@ import { listRelevantPlaywrightSpecs } from "./tools/list-relevant-playwright-sp
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
 import { readPlaywrightReport } from "./tools/read-playwright-report.js";
 import { runPlaywright } from "./tools/run-playwright.js";
+import { suggestPolicyClarifications } from "./tools/suggest-policy-clarifications.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
 import { validatePlaywrightSuite } from "./tools/validate-playwright-suite.js";
 import type {
@@ -26,12 +27,17 @@ function deriveRiskLevel(
   impactedFlows: string[],
   selectedSpecs: string[],
   runnerStatus: "skipped" | "passed" | "failed",
+  hasBlockingClarifications: boolean,
 ): RiskLevel {
   if (failedTestCount > 0 && (hasCoverageGaps || !suiteIsComplete)) {
     return "critical";
   }
 
   if (failedTestCount > 0) {
+    return "high";
+  }
+
+  if (hasBlockingClarifications) {
     return "high";
   }
 
@@ -166,6 +172,14 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
+  const policyClarifications = await suggestPolicyClarifications({
+    flows: impacted.impactedFlowIds,
+    policyPath: input.policyPath,
+    flowMapPath: input.flowMapPath,
+    flowSpecMapPath: input.flowSpecMapPath,
+    repoRoot,
+  });
+
   const suiteValidation = await validatePlaywrightSuite({
     flows: impacted.impactedFlowIds,
     policyPath: input.policyPath,
@@ -186,6 +200,12 @@ export async function generateRegressionReview(
         `Flow '${flowResult.flowId}' is missing coverage scenarios: ${flowResult.missingScenarios.join(", ")}.`,
       );
     }
+
+    if (flowResult.scaffoldScenarios.length > 0) {
+      suiteGapSuggestions.push(
+        `Flow '${flowResult.flowId}' has scaffold-only scenarios that block regression gate: ${flowResult.scaffoldScenarios.join(", ")}.`,
+      );
+    }
   }
 
   const warnings = uniqueSorted([
@@ -197,6 +217,7 @@ export async function generateRegressionReview(
     ...report.warnings,
     ...artifacts.warnings,
     ...suggestions.warnings,
+    ...policyClarifications.warnings,
     ...suiteValidation.warnings,
   ]);
 
@@ -208,7 +229,8 @@ export async function generateRegressionReview(
       .map((result) => result.flowId),
   ]);
 
-  const hasCoverageGaps = mergedSuggestions.length > 0;
+  const hasBlockingClarifications = policyClarifications.questions.some((question) => question.blocking);
+  const hasCoverageGaps = mergedSuggestions.length > 0 || suiteValidation.scaffoldFlows.length > 0;
   const riskLevel = deriveRiskLevel(
     report.totals.failed,
     hasCoverageGaps,
@@ -216,6 +238,7 @@ export async function generateRegressionReview(
     impacted.impactedFlowIds,
     selected.resolvedSpecs,
     run.status,
+    hasBlockingClarifications,
   );
 
   return {
@@ -260,9 +283,11 @@ export async function generateRegressionReview(
       unmappedFiles: suggestions.unmappedFiles,
       suggestions: mergedSuggestions,
     },
+    clarificationQuestions: policyClarifications.questions,
     suiteCompleteness: {
       isComplete: suiteValidation.isComplete,
       incompleteFlows: suiteValidation.incompleteFlows,
+      scaffoldFlows: suiteValidation.scaffoldFlows,
     },
     riskLevel,
     execution: {

@@ -8,6 +8,7 @@ export type ToolName =
   | "read_playwright_report"
   | "collect_artifacts"
   | "suggest_missing_tests"
+  | "suggest_policy_clarifications"
   | "read_business_review_policy"
   | "generate_code_review_report"
   | "generate_unified_review"
@@ -148,6 +149,10 @@ export interface ValidatePlaywrightSuiteFlowResult {
   requiredScenarios: string[];
   coveredScenarios: string[];
   missingScenarios: string[];
+  implementedScenarios: string[];
+  scaffoldScenarios: string[];
+  implementedScenarioIds: string[];
+  scaffoldScenarioIds: string[];
   mappedSpecs: string[];
   missingSpecFiles: string[];
 }
@@ -159,6 +164,7 @@ export interface ValidatePlaywrightSuiteOutput extends BaseToolResponse {
   targetFlows: string[];
   isComplete: boolean;
   incompleteFlows: string[];
+  scaffoldFlows: string[];
   flowResults: ValidatePlaywrightSuiteFlowResult[];
 }
 
@@ -246,6 +252,34 @@ export interface SuggestMissingTestsOutput extends BaseToolResponse {
   suggestions: string[];
 }
 
+export type ClarificationPriority = "high" | "medium" | "low";
+
+export interface ClarificationQuestion {
+  id: string;
+  flowId?: string;
+  priority: ClarificationPriority;
+  blocking: boolean;
+  question: string;
+  rationale: string;
+}
+
+export interface SuggestPolicyClarificationsInput {
+  flows?: string[];
+  policyPath?: string;
+  flowMapPath?: string;
+  flowSpecMapPath?: string;
+  repoRoot?: string;
+}
+
+export interface SuggestPolicyClarificationsOutput extends BaseToolResponse {
+  tool: "suggest_policy_clarifications";
+  policyPath: string;
+  flowMapPath: string;
+  flowSpecMapPath: string;
+  targetFlows: string[];
+  questions: ClarificationQuestion[];
+}
+
 export interface ReadBusinessReviewPolicyInput {
   policyPath?: string;
   repoRoot?: string;
@@ -258,6 +292,8 @@ export interface ReadBusinessReviewPolicyOutput extends BaseToolResponse {
   flowIds: string[];
   policy: { [key: string]: JsonValue };
 }
+
+export type ScenarioImplementationStatus = "scaffold" | "implemented";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
@@ -391,9 +427,11 @@ export interface RegressionReviewOutput {
     unmappedFiles: string[];
     suggestions: string[];
   };
+  clarificationQuestions: ClarificationQuestion[];
   suiteCompleteness: {
     isComplete: boolean;
     incompleteFlows: string[];
+    scaffoldFlows: string[];
   };
   riskLevel: RiskLevel;
   execution: {

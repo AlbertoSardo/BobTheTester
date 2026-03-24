@@ -16,6 +16,7 @@
     "failedTests",
     "artifactPaths",
     "suggestedMissingTests",
+    "clarificationQuestions",
     "suiteCompleteness",
     "riskLevel",
     "execution",
@@ -273,17 +274,63 @@
       },
       "additionalProperties": false
     },
+    "clarificationQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "priority",
+          "blocking",
+          "question",
+          "rationale"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flowId": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "question": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "suiteCompleteness": {
       "type": "object",
       "required": [
         "isComplete",
-        "incompleteFlows"
+        "incompleteFlows",
+        "scaffoldFlows"
       ],
       "properties": {
         "isComplete": {
           "type": "boolean"
         },
         "incompleteFlows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "scaffoldFlows": {
           "type": "array",
           "items": {
             "type": "string"

@@ -48,6 +48,7 @@ npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":fal
 validates suite completeness, selects relevant specs, runs Playwright locally, and returns a comprehensive JSON result.
 
 If no specs are selected, Playwright execution is skipped intentionally (no implicit full-suite fallback).
+With scaffold-first gating, impacted scenarios marked as `[status:scaffold]` keep suite completeness at `false` until implemented.
 
 ## Generate structured code-review output
 ```bash
@@ -76,6 +77,18 @@ Validate suite completeness:
 npm run tool -- validate_playwright_suite '{}'
 ```
 
+Get proactive deterministic clarification questions when policy details are unclear:
+
+```bash
+npm run tool -- suggest_policy_clarifications '{"flows":["user-onboarding"]}'
+```
+
+Placeholder values (`<set-...>`, `TODO`, `TBD`, `to confirm`) are treated as unclear and generate deterministic questions.
+
+Coverage tests are generated with deterministic title markers:
+- `[scenario-id:<flow.slug>]`
+- `[status:scaffold|implemented]`
+
 Review output format schema:
 - `config/regression/review-output.schema.json`
 
@@ -98,6 +111,7 @@ Unified output format schema:
 - `read_playwright_report`
 - `collect_artifacts`
 - `suggest_missing_tests`
+- `suggest_policy_clarifications`
 - `read_business_review_policy`
 - `generate_code_review_report`
 - `generate_regression_review`

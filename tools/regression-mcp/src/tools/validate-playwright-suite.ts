@@ -11,13 +11,13 @@ import {
 } from "../config.js";
 import type {
   JsonValue,
+  ScenarioImplementationStatus,
   ValidatePlaywrightSuiteFlowResult,
   ValidatePlaywrightSuiteInput,
   ValidatePlaywrightSuiteOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-
-const COVERAGE_TITLE_PREFIX = "covers: ";
+import { parseCoverageTitle, toScenarioId } from "../utils/scaffold.js";
 
 function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -51,21 +51,55 @@ function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, 
   return coverageByFlow;
 }
 
-function extractCoverageTitles(specContent: string): string[] {
-  const coverageTitles: string[] = [];
+interface CoverageEntry {
+  scenarioTitle: string;
+  scenarioId: string;
+  status: ScenarioImplementationStatus;
+}
+
+function extractCoverageEntries(
+  specContent: string,
+  flowId: string,
+  specPath: string,
+): { entries: CoverageEntry[]; warnings: string[] } {
+  const entries: CoverageEntry[] = [];
+  const warnings: string[] = [];
   const testTitlePattern =
     /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
     const title = match[1] ?? match[2] ?? match[3] ?? "";
-    if (title.startsWith(COVERAGE_TITLE_PREFIX)) {
-      coverageTitles.push(title.slice(COVERAGE_TITLE_PREFIX.length));
+    const parsed = parseCoverageTitle(title);
+    if (parsed) {
+      const scenarioId = parsed.scenarioId ?? toScenarioId(flowId, parsed.scenarioTitle);
+      const status = parsed.status ?? "scaffold";
+
+      if (!parsed.hasScenarioIdMarker) {
+        warnings.push(
+          `Flow '${flowId}' scenario '${parsed.scenarioTitle}' in '${specPath}' has no scenario-id marker; defaulted to '${scenarioId}'.`,
+        );
+      }
+
+      if (!parsed.hasStatusMarker) {
+        warnings.push(
+          `Flow '${flowId}' scenario '${parsed.scenarioTitle}' in '${specPath}' has no status marker; defaulted to 'scaffold'.`,
+        );
+      }
+
+      entries.push({
+        scenarioTitle: parsed.scenarioTitle,
+        scenarioId,
+        status,
+      });
     }
     match = testTitlePattern.exec(specContent);
   }
 
-  return toSortedUnique(coverageTitles);
+  return {
+    entries,
+    warnings,
+  };
 }
 
 function isConcreteSpecPath(specPath: string): boolean {
@@ -105,7 +139,10 @@ export async function validatePlaywrightSuite(
     const mappedSpecs = toSortedUnique(flowSpecMapConfig.flowToSpecs[flowId] ?? []);
     const concreteSpecs = mappedSpecs.filter(isConcreteSpecPath);
     const missingSpecFiles: string[] = [];
-    const coveredScenarios = new Set<string>();
+    const requiredStatusByScenario = new Map<
+      string,
+      { scenarioId: string; status: ScenarioImplementationStatus }
+    >();
 
     if (mappedSpecs.length === 0) {
       warnings.push(`Flow '${flowId}' has no mapped specs in flow-spec-map.`);
@@ -125,27 +162,73 @@ export async function validatePlaywrightSuite(
       }
 
       const content = await readFile(absolutePath, "utf-8");
-      const scenarioTitles = extractCoverageTitles(content);
-      for (const scenario of scenarioTitles) {
-        coveredScenarios.add(scenario);
+      const coverage = extractCoverageEntries(content, flowId, specPath);
+      warnings.push(...coverage.warnings);
+
+      for (const entry of coverage.entries) {
+        if (!requiredScenarios.includes(entry.scenarioTitle)) {
+          continue;
+        }
+
+        const current = requiredStatusByScenario.get(entry.scenarioTitle);
+        if (!current || current.status !== "implemented" || entry.status === "implemented") {
+          requiredStatusByScenario.set(entry.scenarioTitle, {
+            scenarioId: entry.scenarioId,
+            status: entry.status,
+          });
+        }
       }
     }
 
-    const coveredScenariosSorted = Array.from(coveredScenarios).sort((a, b) => a.localeCompare(b));
-    const missingScenarios = requiredScenarios.filter((scenario) => !coveredScenarios.has(scenario));
+    const coveredScenariosSorted = Array.from(requiredStatusByScenario.keys()).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    const missingScenarios = requiredScenarios.filter(
+      (scenario) => !requiredStatusByScenario.has(scenario),
+    );
+    const implementedScenarios = requiredScenarios.filter(
+      (scenario) => requiredStatusByScenario.get(scenario)?.status === "implemented",
+    );
+    const scaffoldScenarios = requiredScenarios.filter(
+      (scenario) =>
+        requiredStatusByScenario.has(scenario) &&
+        requiredStatusByScenario.get(scenario)?.status !== "implemented",
+    );
+
+    const implementedScenarioIds = implementedScenarios
+      .map((scenario) => requiredStatusByScenario.get(scenario)?.scenarioId ?? toScenarioId(flowId, scenario))
+      .sort((a, b) => a.localeCompare(b));
+
+    const scaffoldScenarioIds = scaffoldScenarios
+      .map((scenario) => requiredStatusByScenario.get(scenario)?.scenarioId ?? toScenarioId(flowId, scenario))
+      .sort((a, b) => a.localeCompare(b));
 
     flowResults.push({
       flowId,
       requiredScenarios,
       coveredScenarios: coveredScenariosSorted,
       missingScenarios,
+      implementedScenarios,
+      scaffoldScenarios,
+      implementedScenarioIds: toSortedUnique(implementedScenarioIds),
+      scaffoldScenarioIds: toSortedUnique(scaffoldScenarioIds),
       mappedSpecs,
       missingSpecFiles: toSortedUnique(missingSpecFiles),
     });
   }
 
   const incompleteFlows = flowResults
-    .filter((result) => result.missingScenarios.length > 0 || result.missingSpecFiles.length > 0)
+    .filter(
+      (result) =>
+        result.missingScenarios.length > 0 ||
+        result.missingSpecFiles.length > 0 ||
+        result.scaffoldScenarios.length > 0,
+    )
+    .map((result) => result.flowId)
+    .sort((a, b) => a.localeCompare(b));
+
+  const scaffoldFlows = flowResults
+    .filter((result) => result.scaffoldScenarios.length > 0)
     .map((result) => result.flowId)
     .sort((a, b) => a.localeCompare(b));
 
@@ -156,7 +239,8 @@ export async function validatePlaywrightSuite(
     targetFlows,
     isComplete: incompleteFlows.length === 0,
     incompleteFlows,
+    scaffoldFlows,
     flowResults,
-    warnings,
+    warnings: toSortedUnique(warnings),
   };
 }

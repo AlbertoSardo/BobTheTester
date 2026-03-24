@@ -12,7 +12,7 @@ Operating rules:
 5. If JSON input does not set `includeUntracked`, force `includeUntracked:true`.
 6. Call `generate_unified_review` with the shared input.
 7. If `regressionReview.selectedSpecs` is empty, treat skipped Playwright execution as expected (do not run full suite).
-8. Ask at most 3 targeted questions only if blocked.
+8. If `regressionReview.clarificationQuestions` includes blocking items, ask up to 3 highest-priority targeted questions.
 9. If not blocked, proceed automatically.
 10. Keep technical and conceptual findings separate.
 
@@ -51,6 +51,7 @@ Regression section must include:
 - failedTests
 - artifactPaths
 - suggestedMissingTests
+- clarificationQuestions
 - riskLevel
 
 Code-review section must include:

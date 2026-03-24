@@ -7,6 +7,8 @@ Aggiornamento corrente: migrazione clean-cut completata su Playwright con output
 ## Cosa fa
 - Mappa i file cambiati su flow di business (`onboarding`, `offboarding`, `profile`, `permissions`)
 - Seleziona in modo deterministico le spec Playwright rilevanti
+- Genera/aggiorna scaffold scenario-based nelle spec Playwright da business policy
+- Genera domande di chiarimento mirate quando la policy non basta per test realmente eseguibili
 - Esegue regression test con output machine-readable
 - Raccoglie report e artifact
 - Evidenzia gap di copertura (flow senza spec o file non mappati)
@@ -88,13 +90,17 @@ Comportamento atteso:
 3. nel blocco regression della review unificata esegue:
    - mapping file -> flow,
    - generazione/aggiornamento suite sui flow impattati,
+   - normalizzazione marker scenario (`[scenario-id:...]`, `[status:scaffold|implemented]`),
    - validazione completezza,
    - run Playwright locale sulle sole spec selezionate,
    - output finale comprensivo con rischio e azioni.
 4. nel blocco code-review della review unificata applica regole deterministiche su path sensibili, added lines e dimensione diff.
 5. se non ci sono spec impattate, salta Playwright (no full suite implicita) e riporta gap/risk.
-6. calcola `overallRiskLevel` e quality gates in un output unico.
-7. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
+6. se mancano dettagli policy esecutivi, include `clarificationQuestions` per follow-up proattivo.
+7. calcola `overallRiskLevel` e quality gates in un output unico.
+8. non esegue auto-merge: fornisce evidenze e rischio per supportare la decisione umana di merge.
+
+Nota quality-gate: con policy `scaffold-first`, gli scenari con `[status:scaffold]` su flow impattati bloccano il gate regression finche non vengono implementati.
 
 ## Flusso end-to-end (come funziona)
 
@@ -185,6 +191,7 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 - `read_playwright_report`
 - `collect_artifacts`
 - `suggest_missing_tests`
+- `suggest_policy_clarifications`
 - `read_business_review_policy`
 - `generate_code_review_report`
 - `generate_regression_review`
@@ -194,6 +201,12 @@ npm --prefix tools/regression-mcp run code-review -- '{"baseRef":"origin/main","
 - `config/regression/flow-map.json` -> changed files -> flow
 - `config/regression/flow-spec-map.json` -> flow -> spec Playwright
 - `config/regression/business-review-policy.json` -> criteri business e copertura minima
+  - campi opzionali consigliati per portabilita cross-project:
+    - `playwrightContext.baseUrl`
+    - `playwrightContext.authStrategy`
+    - `flows.<flowId>.executionHints.entryPath`
+    - `flows.<flowId>.executionHints.primaryActor`
+  - valori placeholder (`<set-...>`, `TODO`, `TBD`) vengono trattati come non chiari e generano `clarificationQuestions`
 - `config/regression/tooling.json` -> configurazione esecuzione/report/artifact
 - `config/regression/review-output.schema.json` -> schema output finale
 - `config/regression/code-review-policy.json` -> regole deterministiche code review
@@ -218,6 +231,7 @@ L'output review include almeno:
 - `failedTests`
 - `artifactPaths`
 - `suggestedMissingTests`
+- `clarificationQuestions`
 - `riskLevel`
 
 L'output code review include almeno:
@@ -233,6 +247,11 @@ L'output unificato include almeno:
 - `overallRiskLevel`
 - `overallRecommendedActions`
 - `qualityGates`
+
+Per marcare uno scenario come implementato:
+1. sostituisci i placeholder del test con step/assertion Playwright reali
+2. aggiorna il titolo da `[status:scaffold]` a `[status:implemented]`
+3. riesegui `suite:check` e `unified-review`
 
 ## Come mantenere il sistema aggiornato
 Quando aggiungi/modifichi flow di business:
@@ -252,6 +271,8 @@ npm --prefix tools/regression-mcp run suite:check -- '{}'
 - MCP non parte: verifica che esista `tools/regression-mcp/dist/index.js` (build mancante)
 - Nessun test eseguito: controlla `dryRun` (se `true`, esecuzione reale viene saltata)
 - Nessuna spec selezionata: Playwright viene saltato per sicurezza; controlla mapping in `flow-map.json` e `flow-spec-map.json`
+- Gate regression fallito con test verdi: controlla scenari ancora `[status:scaffold]` nei flow impattati
+- Gate regression alto anche con flow implementati: controlla `clarificationQuestions` bloccanti (policy incompleta)
 
 ## Documentazione di dettaglio
 - `docs/ai/bobthetester-quickstart.md`

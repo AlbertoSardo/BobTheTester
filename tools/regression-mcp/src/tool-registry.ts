@@ -7,6 +7,7 @@ import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
 import { readBusinessReviewPolicy } from "./tools/read-business-review-policy.js";
 import { readPlaywrightReport } from "./tools/read-playwright-report.js";
 import { generateRegressionReview } from "./review.js";
+import { suggestPolicyClarifications } from "./tools/suggest-policy-clarifications.js";
 import { generateUnifiedReview } from "./unified-review.js";
 import { runPlaywright } from "./tools/run-playwright.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
@@ -23,6 +24,7 @@ import type {
   ReadPlaywrightReportInput,
   RegressionReviewInput,
   RunPlaywrightInput,
+  SuggestPolicyClarificationsInput,
   SuggestMissingTestsInput,
   ToolName,
   UnifiedReviewInput,
@@ -190,6 +192,18 @@ function toSuggestMissingTestsInput(input: Record<string, unknown>): SuggestMiss
   return {
     impactedFlowIds: readRequiredStringArray(input, "impactedFlowIds"),
     unmappedFiles: readRequiredStringArray(input, "unmappedFiles"),
+    flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
+function toSuggestPolicyClarificationsInput(
+  input: Record<string, unknown>,
+): SuggestPolicyClarificationsInput {
+  return {
+    flows: readOptionalStringArray(input, "flows"),
+    policyPath: readOptionalString(input, "policyPath"),
+    flowMapPath: readOptionalString(input, "flowMapPath"),
     flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
     repoRoot: readOptionalString(input, "repoRoot"),
   };
@@ -439,6 +453,25 @@ export const registeredTools: RegisteredTool[] = [
       additionalProperties: false,
     },
     handler: async (input) => suggestMissingTests(toSuggestMissingTestsInput(input)),
+  },
+  {
+    name: "suggest_policy_clarifications",
+    description: "Returns deterministic clarification questions when business-policy execution details are unclear.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        flows: {
+          type: "array",
+          items: { type: "string" },
+        },
+        policyPath: { type: "string" },
+        flowMapPath: { type: "string" },
+        flowSpecMapPath: { type: "string" },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => suggestPolicyClarifications(toSuggestPolicyClarificationsInput(input)),
   },
   {
     name: "read_business_review_policy",

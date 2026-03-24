@@ -46,6 +46,18 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
     actions.push("Complete missing regression suite coverage for all incomplete impacted flows.");
   }
 
+  if (review.suiteCompleteness.scaffoldFlows.length > 0) {
+    actions.push(
+      "Replace scaffold-only scenarios with implemented Playwright assertions for impacted flows before merge.",
+    );
+  }
+
+  if (review.clarificationQuestions.length > 0) {
+    actions.push(
+      "Answer targeted policy clarification questions to make regression requirements project-specific and executable.",
+    );
+  }
+
   if (review.passFailSummary.totals.failed > 0) {
     actions.push("Fix failing Playwright tests before merge.");
   }
