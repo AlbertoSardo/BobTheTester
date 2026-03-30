@@ -1,12 +1,8 @@
 import { readFile } from "node:fs/promises";
 
-import {
-  fileExists,
-  findRepositoryRoot,
-  loadToolingConfig,
-  resolveFromRepoRoot,
-} from "../config.js";
+import { fileExists, findRepositoryRoot, loadToolingConfig, resolveFromRepoRoot } from "../config.js";
 import type { ReadPlaywrightReportInput, ReadPlaywrightReportOutput } from "../types.js";
+import { uniqueSortedNonEmpty } from "../utils/helpers.js";
 
 function safeNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -14,12 +10,6 @@ function safeNumber(value: unknown): number {
 
 function safeString(value: unknown): string {
   return typeof value === "string" ? value : "";
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values.filter((value) => value.length > 0))).sort((a, b) =>
-    a.localeCompare(b),
-  );
 }
 
 interface ParsedSummary {
@@ -132,7 +122,9 @@ function summarizePlaywrightJson(payload: Record<string, unknown>): ParsedSummar
         }
 
         const failurePrefix = specFile ? `${specFile}: ` : "";
-        failures.push(result.message ? `${failurePrefix}${testTitle}: ${result.message}` : `${failurePrefix}${testTitle}`);
+        failures.push(
+          result.message ? `${failurePrefix}${testTitle}: ${result.message}` : `${failurePrefix}${testTitle}`,
+        );
       }
 
       if (specTests.length === 0) {
@@ -162,7 +154,9 @@ function summarizePlaywrightJson(payload: Record<string, unknown>): ParsedSummar
   }
 
   const statsRecord =
-    typeof payload.stats === "object" && payload.stats ? (payload.stats as Record<string, unknown>) : undefined;
+    typeof payload.stats === "object" && payload.stats
+      ? (payload.stats as Record<string, unknown>)
+      : undefined;
 
   if (statsRecord && safeNumber(statsRecord.duration) > 0 && durationMs === 0) {
     durationMs = safeNumber(statsRecord.duration);
@@ -177,9 +171,9 @@ function summarizePlaywrightJson(payload: Record<string, unknown>): ParsedSummar
       pending: 0,
       durationMs,
     },
-    failures: uniqueSorted(failures),
-    failedSpecFiles: uniqueSorted(failedSpecFiles),
-    warnings: uniqueSorted(warnings),
+    failures: uniqueSortedNonEmpty(failures),
+    failedSpecFiles: uniqueSortedNonEmpty(failedSpecFiles),
+    warnings: uniqueSortedNonEmpty(warnings),
   };
 }
 
@@ -213,12 +207,15 @@ export async function readPlaywrightReport(
   }
 
   if (reportFormat !== "json") {
-    warnings.push(`TODO: ${reportFormat} parsing is not implemented yet. Returning stub response for now.`);
+    warnings.push(
+      `Report format '${reportFormat}' is not supported. Only 'json' format is currently implemented. ` +
+        `Configure reportFormat: "json" in tooling.json or pass reportFormat: "json" explicitly.`,
+    );
     return {
       tool: "read_playwright_report",
       reportPath,
       reportFormat,
-      status: "stub",
+      status: "unsupported-format",
       totals: {
         tests: 0,
         passed: 0,

@@ -1,0 +1,22 @@
+{
+  "name": "bob-the-tester",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP-based regression review workflow",
+  "scripts": {
+    "build": "npm run build --prefix tools/regression-mcp",
+    "typecheck": "npm run typecheck --prefix tools/regression-mcp",
+    "start": "npm run start --prefix tools/regression-mcp",
+    "lint": "npm run lint --prefix tools/regression-mcp",
+    "lint:fix": "npm run lint:fix --prefix tools/regression-mcp",
+    "format": "npm run format --prefix tools/regression-mcp",
+    "format:check": "npm run format:check --prefix tools/regression-mcp",
+    "tool": "npm run tool --prefix tools/regression-mcp --",
+    "review": "npm run review --prefix tools/regression-mcp --",
+    "code-review": "npm run code-review --prefix tools/regression-mcp --",
+    "unified-review": "npm run unified-review --prefix tools/regression-mcp --",
+    "suite": "npm run suite --prefix tools/regression-mcp --",
+    "suite:check": "npm run suite:check --prefix tools/regression-mcp --",
+    "setup": "npm run setup:bobthetester --prefix tools/regression-mcp"
+  }
+}

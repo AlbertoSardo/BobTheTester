@@ -1,15 +1,7 @@
 import { generateRegressionReview } from "./review.js";
 import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
-import type {
-  RegressionReviewOutput,
-  RiskLevel,
-  UnifiedReviewInput,
-  UnifiedReviewOutput,
-} from "./types.js";
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
-}
+import type { RegressionReviewOutput, RiskLevel, UnifiedReviewInput, UnifiedReviewOutput } from "./types.js";
+import { uniqueSorted } from "./utils/helpers.js";
 
 function riskPriority(level: RiskLevel): number {
   if (level === "critical") {
@@ -85,9 +77,7 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
   return uniqueSorted(actions);
 }
 
-export async function generateUnifiedReview(
-  input: UnifiedReviewInput = {},
-): Promise<UnifiedReviewOutput> {
+export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Promise<UnifiedReviewOutput> {
   const includeUntracked = input.includeUntracked ?? true;
   const dryRun = input.dryRun ?? false;
 
@@ -123,8 +113,7 @@ export async function generateUnifiedReview(
     suiteCompletenessGatePassed,
     codeReviewRiskGatePassed,
     regressionRiskGatePassed,
-    combinedGatePassed:
-      suiteCompletenessGatePassed && codeReviewRiskGatePassed && regressionRiskGatePassed,
+    combinedGatePassed: suiteCompletenessGatePassed && codeReviewRiskGatePassed && regressionRiskGatePassed,
   };
 
   return {

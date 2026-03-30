@@ -5,10 +5,7 @@ import {
   loadFlowSpecMapConfig,
   resolveFromRepoRoot,
 } from "../config.js";
-import type {
-  ListRelevantPlaywrightSpecsInput,
-  ListRelevantPlaywrightSpecsOutput,
-} from "../types.js";
+import type { ListRelevantPlaywrightSpecsInput, ListRelevantPlaywrightSpecsOutput } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
 
 export async function listRelevantPlaywrightSpecs(

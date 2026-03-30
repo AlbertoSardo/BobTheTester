@@ -18,8 +18,8 @@ import type {
   JsonValue,
   RiskLevel,
 } from "../types.js";
-import { toSortedUnique } from "../utils/fs.js";
 import { execCommand, isGitRepository } from "../utils/git.js";
+import { asObjectRecord, uniqueSorted } from "../utils/helpers.js";
 import { matchesPattern, normalizeForMatch } from "../utils/pattern.js";
 import { getChangedFiles } from "./get-changed-files.js";
 
@@ -83,18 +83,6 @@ const CODE_FILE_EXTENSIONS = new Set([
   ".sh",
 ]);
 
-function uniqueSorted(values: string[]): string[] {
-  return toSortedUnique(values);
-}
-
-function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  return value as Record<string, JsonValue>;
-}
-
 function toRepoRelativePath(repoRoot: string, filePath: string): string {
   const normalizedPath = path.normalize(filePath);
   if (!path.isAbsolute(normalizedPath)) {
@@ -149,7 +137,10 @@ function normalizeDiffPath(rawPath: string): string {
 
 function parseNumstat(stdout: string): Map<string, { addedLines: number; removedLines: number }> {
   const results = new Map<string, { addedLines: number; removedLines: number }>();
-  const lines = stdout.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
+  const lines = stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 
   for (const line of lines) {
     const match = /^([0-9-]+)\t([0-9-]+)\t(.+)$/.exec(line);
@@ -485,7 +476,9 @@ export async function generateCodeReviewReport(
     }
 
     const shouldFallbackToWholeFile =
-      !diffStatsFound.has(filePath) || (!diffPayloadParsed && target.addedLines > 0) || target.addedLineEntries.length === 0;
+      !diffStatsFound.has(filePath) ||
+      (!diffPayloadParsed && target.addedLines > 0) ||
+      target.addedLineEntries.length === 0;
 
     if (!shouldFallbackToWholeFile) {
       continue;
@@ -547,6 +540,8 @@ export async function generateCodeReviewReport(
 
     for (const lineEntry of target.addedLineEntries) {
       for (const rule of parsedPolicy.addedLineChecks) {
+        // Reset lastIndex to avoid stateful regex bugs with global/sticky flags
+        rule.regex.lastIndex = 0;
         if (!rule.regex.test(lineEntry.content)) {
           continue;
         }
@@ -620,24 +615,26 @@ export async function generateCodeReviewReport(
 
   const riskLevel = deriveRiskLevel(findingCounts);
 
-  const recommendedActions = uniqueSorted([
-    findingCounts.high > 0 ? "Resolve all high-severity code-review findings before merge." : "",
-    findingCounts.medium > 0
-      ? "Address medium-severity findings or explicitly document approved waivers."
-      : "",
-    sensitivePathChanges.length > 0
-      ? "Request domain-owner approval for sensitive path changes before merge."
-      : "",
-    addedLineFindings.length > 0
-      ? "Remove temporary debugging markers and unsafe directives from added lines."
-      : "",
-    oversizedChangeFindings.length > 0
-      ? "Split oversized changes or attach focused validation evidence in the PR description."
-      : "",
-    allFindings.length === 0
-      ? "No deterministic code-review findings detected. Continue with semantic human review."
-      : "",
-  ].filter((value) => value.length > 0));
+  const recommendedActions = uniqueSorted(
+    [
+      findingCounts.high > 0 ? "Resolve all high-severity code-review findings before merge." : "",
+      findingCounts.medium > 0
+        ? "Address medium-severity findings or explicitly document approved waivers."
+        : "",
+      sensitivePathChanges.length > 0
+        ? "Request domain-owner approval for sensitive path changes before merge."
+        : "",
+      addedLineFindings.length > 0
+        ? "Remove temporary debugging markers and unsafe directives from added lines."
+        : "",
+      oversizedChangeFindings.length > 0
+        ? "Split oversized changes or attach focused validation evidence in the PR description."
+        : "",
+      allFindings.length === 0
+        ? "No deterministic code-review findings detected. Continue with semantic human review."
+        : "",
+    ].filter((value) => value.length > 0),
+  );
 
   const byExtension: Record<string, number> = {};
   for (const filePath of normalizedChangedFiles) {

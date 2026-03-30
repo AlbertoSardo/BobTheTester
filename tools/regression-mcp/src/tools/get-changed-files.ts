@@ -10,9 +10,7 @@ function splitLines(value: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-export async function getChangedFiles(
-  input: GetChangedFilesInput = {},
-): Promise<GetChangedFilesOutput> {
+export async function getChangedFiles(input: GetChangedFilesInput = {}): Promise<GetChangedFilesOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const warnings: string[] = [];
 

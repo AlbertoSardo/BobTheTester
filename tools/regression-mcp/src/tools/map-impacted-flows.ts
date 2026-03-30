@@ -24,15 +24,15 @@ function toRepoRelativePath(repoRoot: string, filePath: string): string {
   return normalizeForMatch(relative);
 }
 
-export async function mapImpactedFlows(
-  input: MapImpactedFlowsInput,
-): Promise<MapImpactedFlowsOutput> {
+export async function mapImpactedFlows(input: MapImpactedFlowsInput): Promise<MapImpactedFlowsOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const flowMapPath = input.flowMapPath ?? DEFAULT_FLOW_MAP_PATH;
   const { config } = await loadFlowMapConfig(repoRoot, flowMapPath);
   const warnings: string[] = [];
 
-  const changedFiles = toSortedUnique(input.changedFiles.map((filePath) => toRepoRelativePath(repoRoot, filePath)));
+  const changedFiles = toSortedUnique(
+    input.changedFiles.map((filePath) => toRepoRelativePath(repoRoot, filePath)),
+  );
   const impactedFlows = new Set<string>();
   const fileToFlows: Record<string, string[]> = {};
   const unmappedFiles: string[] = [];

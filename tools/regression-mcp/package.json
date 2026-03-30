@@ -14,6 +14,10 @@
     "unified-review": "node dist/cli.js unified-review",
     "suite": "node dist/cli.js tool generate_playwright_suite",
     "suite:check": "node dist/cli.js tool validate_playwright_suite",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
     "setup:bobthetester": "bash ../../scripts/setup-bobthetester.sh"
   },
   "dependencies": {
@@ -21,7 +25,13 @@
     "@playwright/test": "^1.52.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.13.10",
-    "typescript": "^5.8.2"
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.57.2"
   }
 }

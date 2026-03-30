@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "config/regression/review-output.schema.json",
+  "$comment": "Reference-only schema: documents the expected output shape of generate_regression_review. Not enforced at runtime.",
   "title": "RegressionReviewOutput",
   "type": "object",
   "required": [

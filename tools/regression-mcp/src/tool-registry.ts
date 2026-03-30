@@ -209,9 +209,7 @@ function toSuggestPolicyClarificationsInput(
   };
 }
 
-function toReadBusinessReviewPolicyInput(
-  input: Record<string, unknown>,
-): ReadBusinessReviewPolicyInput {
+function toReadBusinessReviewPolicyInput(input: Record<string, unknown>): ReadBusinessReviewPolicyInput {
   return {
     policyPath: readOptionalString(input, "policyPath"),
     repoRoot: readOptionalString(input, "repoRoot"),
@@ -456,7 +454,8 @@ export const registeredTools: RegisteredTool[] = [
   },
   {
     name: "suggest_policy_clarifications",
-    description: "Returns deterministic clarification questions when business-policy execution details are unclear.",
+    description:
+      "Returns deterministic clarification questions when business-policy execution details are unclear.",
     inputSchema: {
       type: "object",
       properties: {

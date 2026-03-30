@@ -17,23 +17,8 @@ import type {
   ValidatePlaywrightSuiteOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
+import { asObjectRecord, asStringArray } from "../utils/helpers.js";
 import { parseCoverageTitle, toScenarioId } from "../utils/scaffold.js";
-
-function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  return value as Record<string, JsonValue>;
-}
-
-function asStringArray(value: JsonValue | undefined): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string");
-}
 
 function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, string[]> {
   const flowsRecord = asObjectRecord(policy.flows);
@@ -183,9 +168,7 @@ export async function validatePlaywrightSuite(
     const coveredScenariosSorted = Array.from(requiredStatusByScenario.keys()).sort((a, b) =>
       a.localeCompare(b),
     );
-    const missingScenarios = requiredScenarios.filter(
-      (scenario) => !requiredStatusByScenario.has(scenario),
-    );
+    const missingScenarios = requiredScenarios.filter((scenario) => !requiredStatusByScenario.has(scenario));
     const implementedScenarios = requiredScenarios.filter(
       (scenario) => requiredStatusByScenario.get(scenario)?.status === "implemented",
     );

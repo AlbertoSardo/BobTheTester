@@ -15,22 +15,7 @@ import type {
   SuggestPolicyClarificationsOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-
-function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  return value as Record<string, JsonValue>;
-}
-
-function asStringArray(value: JsonValue | undefined): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-}
+import { asObjectRecord, asStringArrayStrict } from "../utils/helpers.js";
 
 function asNonEmptyString(value: JsonValue | undefined): string | undefined {
   if (typeof value !== "string") {
@@ -236,7 +221,7 @@ export async function suggestPolicyClarifications(
       );
     }
 
-    const mustHold = asStringArray(flowPolicy.mustHold);
+    const mustHold = asStringArrayStrict(flowPolicy.mustHold);
     if (mustHold.length === 0) {
       addQuestion(
         questions,
@@ -261,7 +246,7 @@ export async function suggestPolicyClarifications(
       );
     }
 
-    const minimumCoverage = asStringArray(flowPolicy.minimumRegressionCoverage);
+    const minimumCoverage = asStringArrayStrict(flowPolicy.minimumRegressionCoverage);
     if (minimumCoverage.length === 0) {
       addQuestion(
         questions,
@@ -286,7 +271,7 @@ export async function suggestPolicyClarifications(
       );
     }
 
-    const conceptualQuestions = asStringArray(flowPolicy.conceptualReviewQuestions);
+    const conceptualQuestions = asStringArrayStrict(flowPolicy.conceptualReviewQuestions);
     if (conceptualQuestions.length === 0) {
       addQuestion(
         questions,
@@ -351,7 +336,9 @@ export async function suggestPolicyClarifications(
     }
 
     const mappedSpecs = toSortedUnique(flowSpecMapConfig.flowToSpecs[flowId] ?? []);
-    const concreteSpecs = mappedSpecs.filter((specPath) => !specPath.includes("*") && !specPath.includes("?"));
+    const concreteSpecs = mappedSpecs.filter(
+      (specPath) => !specPath.includes("*") && !specPath.includes("?"),
+    );
     if (concreteSpecs.length === 0) {
       addQuestion(
         questions,

@@ -15,10 +15,7 @@ import type {
   RegressionReviewOutput,
   RiskLevel,
 } from "./types.js";
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
-}
+import { uniqueSorted } from "./utils/helpers.js";
 
 function deriveRiskLevel(
   failedTestCount: number,
@@ -62,9 +59,7 @@ export async function generateRegressionReview(
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
 
   const includeUntracked = input.includeUntracked ?? true;
-  const changedFilesInput = Array.isArray(input.changedFiles)
-    ? uniqueSorted(input.changedFiles)
-    : undefined;
+  const changedFilesInput = Array.isArray(input.changedFiles) ? uniqueSorted(input.changedFiles) : undefined;
 
   let changedFilesOutput: GetChangedFilesOutput | undefined;
 
@@ -90,6 +85,7 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
+  // generatePlaywrightSuite must complete first as it may create/update spec files and flow-spec-map
   const suiteGeneration = await generatePlaywrightSuite({
     flows: impacted.impactedFlowIds,
     policyPath: input.policyPath,
@@ -97,11 +93,30 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
-  const selected = await listRelevantPlaywrightSpecs({
-    impactedFlowIds: impacted.impactedFlowIds,
-    flowSpecMapPath: input.flowSpecMapPath,
-    repoRoot,
-  });
+  // After suite generation, these three are independent and can run in parallel:
+  // - listRelevantPlaywrightSpecs reads the (now stable) flow-spec-map
+  // - suggestMissingTests only needs impacted flow data
+  // - suggestPolicyClarifications only needs policy + impacted flow data
+  const [selected, suggestions, policyClarifications] = await Promise.all([
+    listRelevantPlaywrightSpecs({
+      impactedFlowIds: impacted.impactedFlowIds,
+      flowSpecMapPath: input.flowSpecMapPath,
+      repoRoot,
+    }),
+    suggestMissingTests({
+      impactedFlowIds: impacted.impactedFlowIds,
+      unmappedFiles: impacted.unmappedFiles,
+      flowSpecMapPath: input.flowSpecMapPath,
+      repoRoot,
+    }),
+    suggestPolicyClarifications({
+      flows: impacted.impactedFlowIds,
+      policyPath: input.policyPath,
+      flowMapPath: input.flowMapPath,
+      flowSpecMapPath: input.flowSpecMapPath,
+      repoRoot,
+    }),
+  ]);
 
   const dryRun = input.dryRun ?? false;
 
@@ -123,69 +138,57 @@ export async function generateRegressionReview(
       ? "Dry run enabled: report parsing skipped to avoid stale artifact reuse."
       : "Playwright execution skipped: report parsing and artifact collection skipped to avoid stale artifact reuse.";
 
-  const report =
-    shouldSkipRuntimeReads
-      ? {
-          tool: "read_playwright_report" as const,
-          reportPath: run.reportPath,
-          reportFormat: run.reportFormat,
-          status: "stub" as const,
-          totals: {
-            tests: 0,
-            passed: 0,
-            failed: 0,
-            skipped: 0,
-            pending: 0,
-            durationMs: 0,
-          },
-          failures: [],
-          failedSpecFiles: [],
-          warnings: [runtimeReadSkipReason],
-        }
-      : await readPlaywrightReport({
+  const stubReport = {
+    tool: "read_playwright_report" as const,
+    reportPath: run.reportPath,
+    reportFormat: run.reportFormat,
+    status: "stub" as const,
+    totals: { tests: 0, passed: 0, failed: 0, skipped: 0, pending: 0, durationMs: 0 },
+    failures: [] as string[],
+    failedSpecFiles: [] as string[],
+    warnings: [runtimeReadSkipReason],
+  };
+
+  const stubArtifacts = {
+    tool: "collect_artifacts" as const,
+    screenshots: [] as string[],
+    failedScreenshots: [] as string[],
+    videos: [] as string[],
+    failedVideos: [] as string[],
+    reports: [] as string[],
+    missingDirectories: [] as string[],
+    warnings: [runtimeReadSkipReason],
+  };
+
+  // After Playwright run, report parsing, artifact collection, and suite validation are independent
+  const [report, artifacts, suiteValidation] = shouldSkipRuntimeReads
+    ? [
+        stubReport,
+        stubArtifacts,
+        await validatePlaywrightSuite({
+          flows: impacted.impactedFlowIds,
+          policyPath: input.policyPath,
+          flowSpecMapPath: input.flowSpecMapPath,
+          repoRoot,
+        }),
+      ]
+    : await Promise.all([
+        readPlaywrightReport({
           reportPath: run.reportPath,
           reportFormat: run.reportFormat,
           repoRoot,
-        });
-
-  const artifacts =
-    shouldSkipRuntimeReads
-      ? {
-          tool: "collect_artifacts" as const,
-          screenshots: [],
-          failedScreenshots: [],
-          videos: [],
-          failedVideos: [],
-          reports: [],
-          missingDirectories: [],
-          warnings: [runtimeReadSkipReason],
-        }
-      : await collectArtifacts({
+        }),
+        collectArtifacts({
           reportPath: run.reportPath,
           repoRoot,
-        });
-
-  const suggestions = await suggestMissingTests({
-    impactedFlowIds: impacted.impactedFlowIds,
-    unmappedFiles: impacted.unmappedFiles,
-    flowSpecMapPath: input.flowSpecMapPath,
-    repoRoot,
-  });
-
-  const policyClarifications = await suggestPolicyClarifications({
-    flows: impacted.impactedFlowIds,
-    policyPath: input.policyPath,
-    flowMapPath: input.flowMapPath,
-    flowSpecMapPath: input.flowSpecMapPath,
-    repoRoot,
-  });
-
-  const suiteValidation = await validatePlaywrightSuite({
-    flows: impacted.impactedFlowIds,
-    policyPath: input.policyPath,
-    flowSpecMapPath: input.flowSpecMapPath,
-    repoRoot,
-  });
+        }),
+        validatePlaywrightSuite({
+          flows: impacted.impactedFlowIds,
+          policyPath: input.policyPath,
+          flowSpecMapPath: input.flowSpecMapPath,
+          repoRoot,
+        }),
+      ]);
 
   const suiteGapSuggestions: string[] = [];
   for (const flowResult of suiteValidation.flowResults) {

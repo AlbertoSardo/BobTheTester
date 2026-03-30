@@ -1,13 +1,5 @@
-import {
-  DEFAULT_BUSINESS_POLICY_PATH,
-  findRepositoryRoot,
-  loadBusinessReviewPolicy,
-} from "../config.js";
-import type {
-  JsonValue,
-  ReadBusinessReviewPolicyInput,
-  ReadBusinessReviewPolicyOutput,
-} from "../types.js";
+import { DEFAULT_BUSINESS_POLICY_PATH, findRepositoryRoot, loadBusinessReviewPolicy } from "../config.js";
+import type { JsonValue, ReadBusinessReviewPolicyInput, ReadBusinessReviewPolicyOutput } from "../types.js";
 
 function readPolicyVersion(policy: { [key: string]: JsonValue }): number | null {
   const value = policy.version;

@@ -17,11 +17,8 @@ import type {
   ScenarioImplementationStatus,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-import {
-  buildCoverageTitle,
-  parseCoverageTitle,
-  toScenarioId,
-} from "../utils/scaffold.js";
+import { asObjectRecord, asStringArray } from "../utils/helpers.js";
+import { buildCoverageTitle, parseCoverageTitle, toScenarioId } from "../utils/scaffold.js";
 
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
@@ -29,10 +26,6 @@ function normalizePath(filePath: string): string {
 
 function toRelative(repoRoot: string, absolutePath: string): string {
   return normalizePath(path.relative(repoRoot, absolutePath));
-}
-
-function escapeDoubleQuotedString(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function escapeForQuote(value: string, quote: '"' | "'" | "`"): string {
@@ -45,22 +38,6 @@ function escapeForQuote(value: string, quote: '"' | "'" | "`"): string {
   }
 
   return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
-}
-
-function asObjectRecord(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  return value as Record<string, JsonValue>;
-}
-
-function asStringArray(value: JsonValue | undefined): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string");
 }
 
 function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, string[]> {
@@ -133,14 +110,17 @@ function normalizeCoverageTitles(
 
   const content = specContent.replace(
     testCallPattern,
-    (match, prefix: string, doubleQuoted: string, singleQuoted: string, templateQuoted: string, suffix: string) => {
+    (
+      match,
+      prefix: string,
+      doubleQuoted: string,
+      singleQuoted: string,
+      templateQuoted: string,
+      suffix: string,
+    ) => {
       const originalTitle = doubleQuoted ?? singleQuoted ?? templateQuoted ?? "";
       const quote: '"' | "'" | "`" =
-        typeof doubleQuoted === "string"
-          ? '"'
-          : typeof singleQuoted === "string"
-            ? "'"
-            : "`";
+        typeof doubleQuoted === "string" ? '"' : typeof singleQuoted === "string" ? "'" : "`";
 
       const parsed = parseCoverageTitle(originalTitle);
       if (!parsed || !requiredScenarios.has(parsed.scenarioTitle)) {
@@ -175,9 +155,9 @@ function createCoverageTestBlock(
   scenarioId: string,
   status: ScenarioImplementationStatus,
 ): string {
-  const escapedFlowId = escapeDoubleQuotedString(flowId);
-  const escapedScenarioId = escapeDoubleQuotedString(scenarioId);
-  const title = escapeDoubleQuotedString(buildCoverageTitle(scenario, scenarioId, status));
+  const escapedFlowId = escapeForQuote(flowId, '"');
+  const escapedScenarioId = escapeForQuote(scenarioId, '"');
+  const title = escapeForQuote(buildCoverageTitle(scenario, scenarioId, status), '"');
 
   return [
     `  test("${title}", async () => {`,
@@ -210,8 +190,8 @@ function appendCoverageTests(specContent: string, missingScenarios: string[], fl
 }
 
 function createPlaceholderTestBlock(flowId: string): string {
-  const escapedFlowId = escapeDoubleQuotedString(flowId);
-  const anchor = escapeDoubleQuotedString(flowId.split("-")[0] || flowId);
+  const escapedFlowId = escapeForQuote(flowId, '"');
+  const anchor = escapeForQuote(flowId.split("-")[0] || flowId, '"');
 
   return [
     `  test("loads deterministic ${escapedFlowId} scaffold placeholder", async () => {`,
@@ -232,7 +212,7 @@ function createNewSpecContent(flowId: string, scenarios: string[]): string {
   return [
     'import { expect, test } from "@playwright/test";',
     "",
-    `test.describe("${escapeDoubleQuotedString(flowId)} flow", () => {`,
+    `test.describe("${escapeForQuote(flowId, '"')} flow", () => {`,
     createPlaceholderTestBlock(flowId),
     "",
     tests.join("\n\n"),
@@ -346,8 +326,7 @@ export async function generatePlaywrightSuite(
 
     const coverageEntriesAfterNormalization = extractExistingCoverageEntries(normalized.content, flowId);
     const missingScenarios = scenarios.filter(
-      (scenario) =>
-        !Object.prototype.hasOwnProperty.call(coverageEntriesAfterNormalization, scenario),
+      (scenario) => !Object.prototype.hasOwnProperty.call(coverageEntriesAfterNormalization, scenario),
     );
 
     if (missingScenarios.length === 0 && !normalized.updated) {

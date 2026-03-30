@@ -1,8 +1,4 @@
-import {
-  DEFAULT_FLOW_SPEC_MAP_PATH,
-  findRepositoryRoot,
-  loadFlowSpecMapConfig,
-} from "../config.js";
+import { DEFAULT_FLOW_SPEC_MAP_PATH, findRepositoryRoot, loadFlowSpecMapConfig } from "../config.js";
 import type { SuggestMissingTestsInput, SuggestMissingTestsOutput } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
 

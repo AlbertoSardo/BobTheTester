@@ -18,10 +18,10 @@ function usage(): string {
     `Available tools: ${toolNames}`,
     "",
     "Examples:",
-    "  node dist/cli.js tool map_impacted_flows '{\"changedFiles\":[\"src/settings/profile/form.ts\"]}'",
-    "  node dist/cli.js review '{\"changedFiles\":[\"src/settings/profile/form.ts\"],\"dryRun\":true}'",
-    "  node dist/cli.js code-review '{\"baseRef\":\"origin/main\",\"headRef\":\"HEAD\"}'",
-    "  node dist/cli.js unified-review '{\"baseRef\":\"origin/main\",\"headRef\":\"HEAD\",\"dryRun\":false}'",
+    '  node dist/cli.js tool map_impacted_flows \'{"changedFiles":["src/settings/profile/form.ts"]}\'',
+    '  node dist/cli.js review \'{"changedFiles":["src/settings/profile/form.ts"],"dryRun":true}\'',
+    '  node dist/cli.js code-review \'{"baseRef":"origin/main","headRef":"HEAD"}\'',
+    '  node dist/cli.js unified-review \'{"baseRef":"origin/main","headRef":"HEAD","dryRun":false}\'',
   ].join("\n");
 }
 

@@ -1,12 +1,7 @@
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 
-import {
-  fileExists,
-  findRepositoryRoot,
-  loadToolingConfig,
-  resolveFromRepoRoot,
-} from "../config.js";
+import { fileExists, findRepositoryRoot, loadToolingConfig, resolveFromRepoRoot } from "../config.js";
 import type { CollectArtifactsInput, CollectArtifactsOutput } from "../types.js";
 import { listFilesRecursively, toSortedUnique } from "../utils/fs.js";
 
@@ -39,9 +34,7 @@ async function readFailedSpecFiles(reportPath: string): Promise<string[]> {
 
     function walkSuite(suiteRecord: Record<string, unknown>, parentFile?: string): void {
       const suiteFile =
-        typeof suiteRecord.file === "string" && suiteRecord.file.length > 0
-          ? suiteRecord.file
-          : parentFile;
+        typeof suiteRecord.file === "string" && suiteRecord.file.length > 0 ? suiteRecord.file : parentFile;
 
       if (Array.isArray(suiteRecord.specs)) {
         for (const spec of suiteRecord.specs) {
@@ -51,9 +44,7 @@ async function readFailedSpecFiles(reportPath: string): Promise<string[]> {
 
           const specRecord = spec as Record<string, unknown>;
           const specFile =
-            typeof specRecord.file === "string" && specRecord.file.length > 0
-              ? specRecord.file
-              : suiteFile;
+            typeof specRecord.file === "string" && specRecord.file.length > 0 ? specRecord.file : suiteFile;
 
           const tests = Array.isArray(specRecord.tests)
             ? specRecord.tests.filter((test) => typeof test === "object" && test !== null)
@@ -107,9 +98,7 @@ async function readFailedSpecFiles(reportPath: string): Promise<string[]> {
   }
 }
 
-export async function collectArtifacts(
-  input: CollectArtifactsInput = {},
-): Promise<CollectArtifactsOutput> {
+export async function collectArtifacts(input: CollectArtifactsInput = {}): Promise<CollectArtifactsOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const { config: toolingConfig } = await loadToolingConfig(repoRoot);
 
@@ -117,10 +106,7 @@ export async function collectArtifacts(
     repoRoot,
     input.screenshotsDir ?? toolingConfig.playwright.testResultsDir,
   );
-  const tracesDir = resolveFromRepoRoot(
-    repoRoot,
-    input.videosDir ?? toolingConfig.playwright.tracesDir,
-  );
+  const tracesDir = resolveFromRepoRoot(repoRoot, input.videosDir ?? toolingConfig.playwright.tracesDir);
   const resultsDir = resolveFromRepoRoot(repoRoot, input.resultsDir ?? toolingConfig.playwright.resultsDir);
   const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.playwright.reportPath);
 

@@ -22,8 +22,9 @@ export async function findRepositoryRoot(startDir = process.cwd()): Promise<stri
   let current = path.resolve(startDir);
 
   while (true) {
-    const markerPath = path.join(current, "AGENTS.md");
-    if (await fileExists(markerPath)) {
+    // Use .git directory as the standard repository root marker
+    const gitDir = path.join(current, ".git");
+    if (await fileExists(gitDir)) {
       return current;
     }
 

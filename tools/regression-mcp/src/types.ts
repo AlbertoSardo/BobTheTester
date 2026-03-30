@@ -14,13 +14,7 @@ export type ToolName =
   | "generate_unified_review"
   | "generate_regression_review";
 
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface JsonSchema {
   [key: string]: JsonValue;
@@ -207,7 +201,7 @@ export interface ReadPlaywrightReportOutput extends BaseToolResponse {
   tool: "read_playwright_report";
   reportPath: string;
   reportFormat: "json" | "junit" | "line";
-  status: "parsed" | "missing" | "invalid" | "stub";
+  status: "parsed" | "missing" | "invalid" | "stub" | "unsupported-format";
   totals: {
     tests: number;
     passed: number;

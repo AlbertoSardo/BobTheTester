@@ -6,20 +6,13 @@ export interface ExecResult {
   exitCode: number;
 }
 
-export async function execCommand(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<ExecResult> {
+export async function execCommand(command: string, args: string[], cwd: string): Promise<ExecResult> {
   return new Promise<ExecResult>((resolve, reject) => {
     execFile(command, args, { cwd, encoding: "utf-8" }, (error, stdout, stderr) => {
       if (error) {
         reject(
           new Error(
-            [
-              `Command failed: ${command} ${args.join(" ")}`,
-              stderr ? `stderr: ${stderr.trim()}` : "",
-            ]
+            [`Command failed: ${command} ${args.join(" ")}`, stderr ? `stderr: ${stderr.trim()}` : ""]
               .filter(Boolean)
               .join("\n"),
           ),

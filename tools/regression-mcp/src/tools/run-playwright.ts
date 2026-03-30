@@ -90,8 +90,7 @@ async function writeJsonReporterOutput(
   if (parsedReports.length === 0) {
     return {
       wroteReport: false,
-      warning:
-        "Unable to extract JSON reporter payload from Playwright stdout; report file was not written.",
+      warning: "Unable to extract JSON reporter payload from Playwright stdout; report file was not written.",
     };
   }
 
