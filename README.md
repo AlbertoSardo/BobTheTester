@@ -6,18 +6,35 @@ BobTheTester analyzes code changes in a PR, maps them to impacted business flows
 
 ## How it works
 
-```
-/bobthetester config/regression/business-review-policy.json
+```mermaid
+flowchart TD
+    A["/bobthetester"] --> B["Read business policy"]
+    B --> C["Detect changed files via git diff"]
+    C --> D["Map files to impacted business flows"]
 
-  1. Reads the business policy to understand which flows to protect
-  2. Detects changed files in the PR (git diff)
-  3. Maps changed files to impacted business flows
-  4. Generates missing Playwright regression tests (scaffold specs)
-  5. Runs Playwright on the impacted specs
-  6. Performs deterministic code review (sensitive paths, debug markers, diff size)
-  7. Evaluates quality gates
-  8. Asks clarifying questions if policy details are missing
-  9. Outputs a human-readable report in the terminal
+    D --> E["Regression path"]
+    D --> F["Code review path"]
+
+    E --> G["Generate missing Playwright specs"]
+    G --> H{"Specs to run?"}
+    H -- Yes --> I["Run Playwright"]
+    H -- No --> J["Skip safely"]
+    I --> K["Parse report & collect artifacts"]
+    J --> K
+
+    F --> L["Apply deterministic rules\n(sensitive paths, debug markers, diff size)"]
+
+    K --> M["Evaluate quality gates"]
+    L --> M
+
+    M --> N{"Policy gaps?"}
+    N -- Yes --> O["Ask clarifying questions"]
+    N -- No --> P["Output terminal report\nrisk level + recommended actions"]
+    O --> P
+
+    style A fill:#4f46e5,color:#fff
+    style P fill:#16a34a,color:#fff
+    style O fill:#f59e0b,color:#000
 ```
 
 ## Quick start
