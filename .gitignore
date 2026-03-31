@@ -4,3 +4,8 @@ playwright-report/
 test-results/
 tools/regression-mcp/dist/
 tools/regression-mcp/node_modules/
+sandbox/clinic-app/node_modules/
+sandbox/clinic-app/dist/
+sandbox/artifacts/
+sandbox/test-results/
+sandbox/playwright-report/

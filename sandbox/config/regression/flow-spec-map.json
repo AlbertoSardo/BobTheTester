@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "flowToSpecs": {
+    "patient-registration": ["sandbox/playwright/e2e/flows/patient-registration.spec.ts"],
+    "appointment-booking": ["sandbox/playwright/e2e/flows/appointment-booking.spec.ts"],
+    "doctor-assignment": ["sandbox/playwright/e2e/flows/doctor-assignment.spec.ts"]
+  }
+}

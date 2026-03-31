@@ -1,0 +1,22 @@
+{
+  "name": "clinic-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sample clinic management app for BobTheTester sandbox testing",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "tsx src/app.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.7.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
