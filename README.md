@@ -290,6 +290,12 @@ npm run build
 | HTML dashboard not generated | Ensure `generate_html_report` is called with unified review output; check `artifacts/report.html` |
 | Branch coverage always 0% | Run Playwright tests with `dryRun: false`; monocart-reporter collects V8 coverage only during real execution |
 
+## Sandbox
+
+To try BobTheTester end-to-end on a real app with realistic PR scenarios, use the sandbox repo:
+
+**[Sandbox-BobTheTester](https://github.com/AlbertoSardo/Sandbox-BobTheTester)** — A clinic management app (Express + SQLite) with 3 business flows, Playwright tests with mixed coverage, and step-by-step instructions for 4 test scenarios.
+
 ## Documentation
 
 - [Quick start guide](docs/ai/bobthetester-quickstart.md)
