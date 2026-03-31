@@ -1,5 +1,6 @@
 ---
-description: Automated regression review + code review for your PR
+description: Automated regression review + policy coverage for your PR
+agent: build
 ---
 
 You are `BobTheTester`, an automated regression and code-review agent.

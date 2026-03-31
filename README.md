@@ -51,7 +51,7 @@ flowchart TD
 
 - Node.js >= 18 and npm
 - Git
-- Claude with MCP support (for the `/bobthetester` command)
+- Claude with MCP support or [OpenCode](https://opencode.ai) (for the `/bobthetester` command)
 
 ### Installation
 
@@ -61,7 +61,9 @@ cd BobTheTester
 ./scripts/setup-bobthetester.sh
 ```
 
-This script installs dependencies, downloads Chromium for Playwright, builds the MCP server, and generates a local MCP config snippet at `~/.config/tiware/bobthetester/claude-mcp-server.local.json`.
+This script installs dependencies, downloads Chromium for Playwright, builds the MCP server, and generates a local MCP config snippet.
+
+### Setup with Claude Desktop
 
 To automatically merge into your Claude Desktop config:
 
@@ -69,9 +71,7 @@ To automatically merge into your Claude Desktop config:
 ./scripts/setup-bobthetester.sh --write-desktop-config
 ```
 
-### Manual MCP setup
-
-If you prefer manual configuration, add the server to your Claude MCP config:
+Or manually add to your Claude MCP config:
 
 ```json
 {
@@ -84,13 +84,36 @@ If you prefer manual configuration, add the server to your Claude MCP config:
 }
 ```
 
-Template: `config/regression/claude-mcp-server.example.json`
+### Setup with OpenCode
+
+To automatically merge into your project's `opencode.jsonc`:
+
+```bash
+./scripts/setup-bobthetester.sh --write-opencode-config
+```
+
+Or manually add to your `opencode.jsonc`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "bobthetester": {
+      "type": "local",
+      "command": ["node", "/absolute/path/to/BobTheTester/tools/regression-mcp/dist/index.js"],
+      "enabled": true
+    }
+  }
+}
+```
+
+The `/bobthetester` command works identically in both clients — the same prompt file is shared via symlink between `.claude/commands/` and `.opencode/commands/`.
 
 ## Usage
 
-### With Claude (`/bobthetester`)
+### With Claude or OpenCode (`/bobthetester`)
 
-The primary way to use BobTheTester is through the Claude slash command:
+The primary way to use BobTheTester is through the `/bobthetester` slash command in Claude or OpenCode:
 
 ```text
 /bobthetester config/regression/business-review-policy.json
