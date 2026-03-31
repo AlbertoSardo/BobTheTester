@@ -29,11 +29,12 @@ flowchart TD
 
     M --> N{"Policy covered?"}
     N -- No --> Q["Flag uncovered invariants\n+ raise risk level"]
-    N -- Yes --> R{"Policy gaps?"}
+    N -- Yes --> R{"Policy gaps\n(blocking questions)?"}
     Q --> R
-    R -- Yes --> O["Ask clarifying questions"]
+    R -- Yes --> O["Ask clarifying questions\n(max 3 rounds)"]
+    O --> U["Update policy with answers"]
+    U --> G
     R -- No --> S["Generate HTML dashboard"]
-    O --> S
     S --> P["Output terminal report\nrisk level + recommended actions"]
 
     style A fill:#4f46e5,color:#fff
@@ -41,6 +42,7 @@ flowchart TD
     style O fill:#f59e0b,color:#000
     style Q fill:#dc2626,color:#fff
     style S fill:#7c3aed,color:#fff
+    style U fill:#0ea5e9,color:#fff
 ```
 
 ## Quick start

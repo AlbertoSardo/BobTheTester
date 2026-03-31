@@ -103,9 +103,30 @@ This single call performs the entire pipeline:
 - Performs deterministic code review checks
 - Evaluates quality gates
 
-### Step 3 — Ask clarifying questions if blocked
+### Step 3 — Iterative clarification and re-run loop
 
-If the result contains `clarificationQuestions` with `blocking: true` items, ask the user the top 3 highest-priority questions. Wait for answers before proceeding. If nothing is blocking, continue automatically.
+Check if the result contains `clarificationQuestions` with `blocking: true` items. If there are none, skip to Step 4.
+
+If there are blocking questions:
+
+1. **Ask**: Present the top 3 highest-priority blocking questions to the user. Wait for answers.
+
+2. **Update the policy**: Read the current `business-review-policy.json`, replace the placeholder values (`<set-...>`, `TODO`, `TBD`) with the information from the user's answers. For example:
+   - If the user provides a base URL → update `playwrightContext.baseUrl`
+   - If the user provides an entry path for a flow → update `flows.<flowId>.executionHints.entryPath`
+   - If the user adds new invariants or scenarios → add them to the relevant `mustHold` or `minimumRegressionCoverage` arrays
+   - Save the updated JSON back to the same file.
+
+3. **Re-run the unified review**: Call `generate_unified_review` again with the same parameters as Step 2 but with the updated policy. This will:
+   - Regenerate Playwright scaffold specs with the new details (real entry paths, actors, etc.)
+   - Re-run Playwright on the updated specs
+   - Recalculate policy coverage with the new data
+
+4. **Check again**: If the new result still has blocking `clarificationQuestions`, go back to substep 1. Otherwise, proceed to Step 4.
+
+**Safety limits:**
+- Maximum 3 iterations of this loop. If blocking questions remain after 3 rounds, proceed to Step 4 anyway and include the unresolved gaps in the report.
+- If the user's answers do not resolve the blocking questions (e.g. the user says "I don't know"), proceed to Step 4 and flag the gaps.
 
 ### Step 4 — Generate HTML dashboard
 
