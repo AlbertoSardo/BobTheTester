@@ -1,180 +1,180 @@
 # BobTheTester Sandbox
 
-Questa sandbox ti permette di provare BobTheTester end-to-end su un'app reale, con scenari di PR realistici, in pochi minuti.
+This sandbox lets you try BobTheTester end-to-end on a real app, with realistic PR scenarios, in just a few minutes.
 
-## Cosa c'e' dentro
+## What's inside
 
-Una web app per la gestione di una clinica medica (Express + SQLite in-memory) con 3 business flow:
+A clinic management web app (Express + in-memory SQLite) with 3 business flows:
 
-- **patient-registration** — Registrare nuovi pazienti con validazione form
-- **appointment-booking** — Prenotare appuntamenti con prevenzione double-booking
-- **doctor-assignment** — Assegnare dottori ai pazienti, gestire disponibilita'
+- **patient-registration** — Register new patients with form validation
+- **appointment-booking** — Book appointments with double-booking prevention
+- **doctor-assignment** — Assign doctors to patients, manage availability
 
-L'app gira su `http://localhost:3333`. I dati vivono solo in memoria — ogni riavvio riparte pulito.
+The app runs on `http://localhost:3333`. Data lives in memory only — every restart starts clean.
 
-### Coverage di partenza
+### Starting coverage
 
-| Flow | Test implementati | Test scaffold | Note |
+| Flow | Implemented tests | Scaffold tests | Notes |
 |------|:-:|:-:|------|
-| patient-registration | 1 | 2 | Happy path coperto |
-| appointment-booking | 1 | 2 | Happy path coperto |
-| doctor-assignment | 0 | 3 | Tutto scaffold — volutamente scoperto |
+| patient-registration | 1 | 2 | Happy path covered |
+| appointment-booking | 1 | 2 | Happy path covered |
+| doctor-assignment | 0 | 3 | All scaffold — intentionally uncovered |
 
-Questo simula un progetto reale dove alcune aree sono ben coperte e altre no.
+This simulates a real project where some areas are well covered and others are not.
 
 ---
 
-## Prerequisiti
+## Prerequisites
 
 - Node.js >= 18
 - npm
 - Git
-- Claude con supporto MCP (per usare `/bobthetester`)
+- Claude with MCP support (to use `/bobthetester`)
 
 ---
 
-## Setup (una volta sola)
+## Setup (one time only)
 
-Dalla root del repo (`BobTheTester/`):
+From the repo root (`BobTheTester/`):
 
 ```bash
-# 1. Installa e builda BobTheTester
+# 1. Install and build BobTheTester
 npm install --prefix tools/regression-mcp
 npm run build
 
-# 2. Installa le dipendenze della clinic app
+# 2. Install clinic app dependencies
 npm install --prefix sandbox/clinic-app
 ```
 
-Fatto. Tutto il resto e' automatico.
+Done. Everything else is automatic.
 
-### Verifica rapida (opzionale)
+### Quick verification (optional)
 
 ```bash
-# Verifica che l'app si avvii
+# Verify the app starts
 npx tsx sandbox/clinic-app/src/app.ts
-# Apri http://localhost:3333 nel browser — dovresti vedere la clinica
-# Ctrl+C per fermarla
+# Open http://localhost:3333 in your browser — you should see the clinic app
+# Ctrl+C to stop
 
-# Verifica che i test Playwright passino
+# Verify Playwright tests pass
 NODE_PATH=$(pwd)/tools/regression-mcp/node_modules \
   npm exec --prefix tools/regression-mcp -- \
   playwright test --config sandbox/playwright.config.ts --project chromium
-# Output atteso: 9 passed
+# Expected output: 9 passed
 ```
 
 ---
 
-## Come provare BobTheTester
+## How to test BobTheTester
 
-### Prova 1 — Baseline (stato attuale, nessuna modifica)
+### Test 1 — Baseline (current state, no changes)
 
-Apri Claude e lancia:
+Open Claude and run:
 
 ```
 /bobthetester sandbox/config/regression/business-review-policy.json
 ```
 
-**Cosa aspettarsi:**
-- BobTheTester rileva i file cambiati dall'ultimo commit
-- Mappa i file ai 3 business flow
-- Mostra che `doctor-assignment` ha 0% di coverage implementata
-- Il quality gate FALLISCE (troppi test scaffold)
-- Viene generato un report HTML in `sandbox/artifacts/report.html` — aprilo nel browser per vedere treemap e radar chart
+**What to expect:**
+- BobTheTester detects files changed since the last commit
+- Maps files to the 3 business flows
+- Shows that `doctor-assignment` has 0% implemented coverage
+- The quality gate FAILS (too many scaffold tests)
+- An HTML report is generated at `sandbox/artifacts/report.html` — open it in your browser to see the treemap and radar charts
 
-### Prova 2 — Story A: Aggiungere campo email alla registrazione paziente
+### Test 2 — Story A: Add email field to patient registration
 
-Questa prova simula una PR che aggiunge un campo email al form di registrazione.
+This test simulates a PR that adds an email field to the registration form.
 
 ```bash
-# 1. Crea un branch
+# 1. Create a branch
 git checkout -b feature/patient-email
 ```
 
-Ora modifica `sandbox/clinic-app/src/patients/routes.ts`. Aggiungi:
-- Un campo `email?: string` all'interfaccia `Patient`
-- Un input email al form di registrazione (dopo il telefono)
-- Validazione: se l'email e' presente, deve contenere `@`
-- Salvataggio dell'email nel database
-- Visualizzazione dell'email nella pagina dettaglio paziente
+Now edit `sandbox/clinic-app/src/patients/routes.ts`. Add:
+- An `email?: string` field to the `Patient` interface
+- An email input field to the registration form (after phone)
+- Validation: if email is provided, it must contain `@`
+- Save the email in the INSERT statement
+- Display the email on the patient detail page
 
-Poi lancia BobTheTester:
+Then run BobTheTester:
 
 ```
 /bobthetester sandbox/config/regression/business-review-policy.json
 ```
 
-**Cosa aspettarsi:**
-- Solo il flow `patient-registration` risulta impattato
-- I flow `appointment-booking` e `doctor-assignment` NON vengono toccati
-- BobTheTester segnala che i test scaffold devono essere implementati
-- La policy coverage di `patient-registration` e' parziale
-- Le recommended actions suggeriscono di aggiornare i test per coprire la validazione email
+**What to expect:**
+- Only the `patient-registration` flow is impacted
+- The `appointment-booking` and `doctor-assignment` flows are NOT touched
+- BobTheTester flags that scaffold tests need implementation
+- Policy coverage for `patient-registration` is partial
+- Recommended actions suggest updating tests to cover email validation
 
-Per tornare allo stato iniziale: `git checkout main`
+To reset: `git checkout main`
 
-### Prova 3 — Story B: Cancellazione appuntamenti
+### Test 3 — Story B: Appointment cancellation
 
-Questa prova simula una PR che aggiunge la possibilita' di cancellare un appuntamento.
+This test simulates a PR that adds the ability to cancel an appointment.
 
 ```bash
-# 1. Crea un branch
+# 1. Create a branch
 git checkout -b feature/cancel-appointment
 ```
 
-Modifica `sandbox/clinic-app/src/appointments/routes.ts`. Aggiungi:
-- Una route POST `/:id/cancel` che cambia lo status a `"cancelled"`
-- Un bottone "Cancel" nella lista appuntamenti (solo per quelli con status `"scheduled"`)
+Edit `sandbox/clinic-app/src/appointments/routes.ts`. Add:
+- A POST route `/:id/cancel` that changes the appointment status to `"cancelled"`
+- A "Cancel" button in the appointment list (only for appointments with status `"scheduled"`)
 
-Poi lancia BobTheTester:
+Then run BobTheTester:
 
 ```
 /bobthetester sandbox/config/regression/business-review-policy.json
 ```
 
-**Cosa aspettarsi:**
-- Solo il flow `appointment-booking` risulta impattato
-- BobTheTester segnala che la cancellazione non e' tra gli scenari coperti dalla policy
-- I test scaffold vengono flaggati per l'implementazione
-- Le recommended actions suggeriscono di aggiungere test per la cancellazione
+**What to expect:**
+- Only the `appointment-booking` flow is impacted
+- BobTheTester flags that cancellation is not among the scenarios covered by the policy
+- Scaffold tests are flagged for implementation
+- Recommended actions suggest adding tests for the cancellation flow
 
-Per tornare allo stato iniziale: `git checkout main`
+To reset: `git checkout main`
 
-### Prova 4 — Input da testo libero (ticket Jira)
+### Test 4 — Free-form text input (Jira ticket)
 
-Invece di passare un file di policy, incolla direttamente il testo di un ticket:
+Instead of passing a policy file, paste ticket content directly:
 
 ```
-/bobthetester Il flusso di registrazione paziente deve ora raccogliere il codice fiscale del paziente. Il campo e' obbligatorio. Il codice fiscale deve essere validato nel formato italiano (16 caratteri alfanumerici). Il dato deve persistere e essere visibile nella pagina dettaglio paziente.
+/bobthetester The patient registration flow must now capture the patient's tax ID number. The field is mandatory. The tax ID must be validated as a 16-character alphanumeric string. The data must persist and be visible on the patient detail page.
 ```
 
-**Cosa aspettarsi:**
-- BobTheTester estrae i business flow dal testo
-- Genera un `business-review-policy.json` con i requisiti del codice fiscale
-- Mostra un riepilogo di cosa ha estratto (flow, scenari, placeholder)
-- Procede automaticamente con la review
+**What to expect:**
+- BobTheTester extracts business flows from the text
+- Generates a `business-review-policy.json` with the tax ID requirements
+- Shows a summary of what was extracted (flows, scenarios, placeholders)
+- Proceeds automatically with the review
 
 ---
 
-## Valutazione
+## Evaluation
 
-Dopo ogni prova, valuta BobTheTester su questi aspetti:
+After each test, evaluate BobTheTester on these criteria:
 
-| Aspetto | Domanda |
-|---------|---------|
-| **Accuratezza** | Ha identificato correttamente i flow impattati? Ne ha perso qualcuno? Ha generato falsi positivi? |
-| **Coverage** | I punteggi sono ragionevoli? Le 3 dimensioni (must-hold, scenari, branch) hanno senso? |
-| **Generazione test** | I test scaffold generati sono sensati? Sono nel file spec giusto? |
-| **Report terminale** | E' chiaro e scansionabile? Le azioni raccomandate sono utili e concrete? |
-| **Dashboard HTML** | Treemap e radar riflettono i dati reali? Il drill-down funziona? |
-| **Domande di chiarimento** | Sono mirate? Aiutano davvero a completare la policy? |
-| **Conversione input** | Se hai usato PDF/testo, i flow estratti hanno senso? |
+| Criteria | Question |
+|----------|----------|
+| **Accuracy** | Did it correctly identify impacted flows? Did it miss any? Did it generate false positives? |
+| **Coverage** | Are the scores reasonable? Do the 3 dimensions (must-hold, scenarios, branches) make sense? |
+| **Test generation** | Are the generated scaffold tests meaningful? Are they in the right spec file? |
+| **Terminal report** | Is it clear and scannable? Are recommended actions useful and concrete? |
+| **HTML dashboard** | Do the treemap and radar charts reflect the actual data? Does the drill-down work? |
+| **Clarification questions** | Are they targeted? Do they actually help complete the policy? |
+| **Input conversion** | If you used PDF/text, do the extracted flows make sense? |
 
 ---
 
 ## Reset
 
-Per tornare allo stato iniziale e riprovare:
+To return to the initial state and try again:
 
 ```bash
 git checkout main
