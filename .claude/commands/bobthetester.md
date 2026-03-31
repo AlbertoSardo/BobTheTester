@@ -11,34 +11,98 @@ You review code changes in the current PR, generate any missing Playwright regre
 ## Input handling
 
 `$ARGUMENTS` can be:
-- A file path to the business review policy (e.g. `config/regression/business-review-policy.json`)
+- A file path to the business review policy in any format (`.json`, `.pdf`, `.md`, `.docx`, `.txt`, etc.)
 - A JSON object with explicit fields (e.g. `{"policyPath": "...", "baseRef": "origin/main"}`)
 - Empty (uses defaults from project config)
 
-If `$ARGUMENTS` is a plain file path (not JSON), treat it as `policyPath`.
+If `$ARGUMENTS` is a plain file path (not JSON), treat it as the policy source file.
 Always force `dryRun: false` and `includeUntracked: true` unless explicitly overridden.
 
 ## Execution steps
 
-1. **Read the business policy** — call `read_business_review_policy` with the resolved `policyPath`. Understand which business flows exist and their required regression coverage.
+### Step 0 — Policy conversion (if needed)
 
-2. **Run the unified review** — call `generate_unified_review` with:
-   - `policyPath` from step 1
-   - `dryRun: false`
-   - `includeUntracked: true`
-   - Any additional fields from `$ARGUMENTS`
+If the policy source file is **not** a `.json` file (e.g. it is a PDF, Markdown, Word document, plain text, or any other format):
 
-   This single call performs the entire pipeline:
-   - Detects changed files in the PR
-   - Maps them to impacted business flows
-   - Generates missing Playwright regression tests (scaffold specs)
-   - Runs Playwright on impacted specs
-   - Performs deterministic code review checks
-   - Evaluates quality gates
+1. Read the file using your native file-reading capabilities.
+2. Extract the business flows, invariants, regression coverage scenarios, and execution details from the document content.
+3. Generate a `business-review-policy.json` file conforming to this exact structure:
 
-3. **Ask clarifying questions if blocked** — if the result contains `clarificationQuestions` with `blocking: true` items, ask the user the top 3 highest-priority questions. Wait for answers before proceeding. If nothing is blocking, continue automatically.
+```json
+{
+  "version": 1,
+  "policyName": "<derived-from-document>",
+  "lastUpdated": "<today's date>",
+  "owners": {
+    "product": "<extract or set placeholder: <set-product-owner>>",
+    "engineering": "<extract or set placeholder: <set-engineering-owner>>"
+  },
+  "playwrightContext": {
+    "baseUrl": "<extract or set placeholder: <set-project-base-url>>",
+    "authStrategy": "<extract or set placeholder: <set-auth-strategy>>",
+    "testDataStrategy": "seeded-fixtures"
+  },
+  "flows": {
+    "<flow-id>": {
+      "userGoal": "<what the user is trying to accomplish>",
+      "mustHold": ["<invariant 1>", "<invariant 2>"],
+      "conceptualReviewQuestions": ["<review question 1>"],
+      "commonFailureModes": ["<failure mode 1>"],
+      "minimumRegressionCoverage": ["<scenario 1>", "<scenario 2>"],
+      "executionHints": {
+        "entryPath": "<extract or set placeholder: <set-entry-path-for-FLOW_ID>>",
+        "primaryActor": "<extract or set placeholder: <set-primary-actor-for-FLOW_ID>>",
+        "expectedOutcome": "<what success looks like>"
+      }
+    }
+  }
+}
+```
 
-4. **Produce the terminal report** — format the output as described below. Do NOT dump raw JSON. Present a human-readable report.
+**Conversion rules:**
+- Each distinct business flow, user journey, or feature area in the document becomes a flow entry. Use lowercase kebab-case for flow IDs (e.g. `user-onboarding`, `payment-checkout`).
+- For `minimumRegressionCoverage`: extract concrete test scenarios. Include at minimum the happy path, a validation/error path, and a persistence/state verification path for each flow.
+- For `mustHold`: extract non-negotiable business invariants — things that must always be true regardless of code changes.
+- For fields you cannot derive from the document (like `baseUrl`, `authStrategy`, `entryPath`, `primaryActor`), use `<set-...>` placeholders. These will automatically trigger clarification questions later in the pipeline.
+- Keep scenario and invariant descriptions concise and specific — they become Playwright test titles.
+
+4. Save the generated JSON to `config/regression/business-review-policy.json`.
+5. Also update `config/regression/flow-map.json` with basic file pattern mappings for each new flow (use `src/<flow-id>/**` as default patterns).
+6. Show a brief summary to the user:
+   - How many business flows were extracted
+   - The flow IDs and number of regression scenarios per flow
+   - Which fields were left as placeholders
+   - Then proceed automatically to step 1 (do not wait for confirmation).
+
+If the policy source file **is** a `.json` file, skip this step and use it directly as `policyPath`.
+
+### Step 1 — Read the business policy
+
+Call `read_business_review_policy` with the resolved `policyPath`. Understand which business flows exist and their required regression coverage.
+
+### Step 2 — Run the unified review
+
+Call `generate_unified_review` with:
+- `policyPath` from step 1
+- `dryRun: false`
+- `includeUntracked: true`
+- Any additional fields from `$ARGUMENTS`
+
+This single call performs the entire pipeline:
+- Detects changed files in the PR
+- Maps them to impacted business flows
+- Generates missing Playwright regression tests (scaffold specs)
+- Runs Playwright on impacted specs
+- Performs deterministic code review checks
+- Evaluates quality gates
+
+### Step 3 — Ask clarifying questions if blocked
+
+If the result contains `clarificationQuestions` with `blocking: true` items, ask the user the top 3 highest-priority questions. Wait for answers before proceeding. If nothing is blocking, continue automatically.
+
+### Step 4 — Produce the terminal report
+
+Format the output as described below. Do NOT dump raw JSON. Present a human-readable report.
 
 ## Output format
 
