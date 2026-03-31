@@ -1,8 +1,8 @@
 # BobTheTester
 
-Automated regression review and code review for PRs, powered by deterministic MCP tools and Playwright.
+Automated regression review and policy coverage analysis for PRs, powered by deterministic MCP tools and Playwright.
 
-BobTheTester analyzes code changes in a PR, maps them to impacted business flows, generates missing Playwright regression tests, runs them, performs a deterministic code review, and produces a clear report with risk level, quality gates, and recommended actions.
+BobTheTester analyzes code changes in a PR, maps them to impacted business flows, generates missing Playwright regression tests, runs them, evaluates how well the code covers business policy requirements, and produces a clear report with risk level, quality gates, and recommended actions.
 
 ## How it works
 
@@ -13,28 +13,34 @@ flowchart TD
     C --> D["Map files to impacted business flows"]
 
     D --> E["Regression path"]
-    D --> F["Code review path"]
+    D --> F["Policy coverage path"]
 
     E --> G["Generate missing Playwright specs"]
     G --> H{"Specs to run?"}
-    H -- Yes --> I["Run Playwright"]
+    H -- Yes --> I["Run Playwright\n+ collect coverage"]
     H -- No --> J["Skip safely"]
     I --> K["Parse report & collect artifacts"]
     J --> K
 
-    F --> L["Apply deterministic rules\n(sensitive paths, debug markers, diff size)"]
+    F --> L["Evaluate policy coverage\n(must-hold, scenarios, branches)"]
 
     K --> M["Evaluate quality gates"]
     L --> M
 
-    M --> N{"Policy gaps?"}
-    N -- Yes --> O["Ask clarifying questions"]
-    N -- No --> P["Output terminal report\nrisk level + recommended actions"]
-    O --> P
+    M --> N{"Policy covered?"}
+    N -- No --> Q["Flag uncovered invariants\n+ raise risk level"]
+    N -- Yes --> R{"Policy gaps?"}
+    Q --> R
+    R -- Yes --> O["Ask clarifying questions"]
+    R -- No --> S["Generate HTML dashboard"]
+    O --> S
+    S --> P["Output terminal report\nrisk level + recommended actions"]
 
     style A fill:#4f46e5,color:#fff
     style P fill:#16a34a,color:#fff
     style O fill:#f59e0b,color:#000
+    style Q fill:#dc2626,color:#fff
+    style S fill:#7c3aed,color:#fff
 ```
 
 ## Quick start
@@ -88,19 +94,23 @@ The primary way to use BobTheTester is through the Claude slash command:
 /bobthetester config/regression/business-review-policy.json
 ```
 
-You can pass just the policy file path, a JSON object with options, or nothing to use defaults:
+You can pass a policy file in any format, a JSON object with options, plain text from a ticket, or nothing to use defaults:
 
 ```text
 /bobthetester
+/bobthetester config/regression/business-review-policy.json
+/bobthetester docs/requirements.pdf
 /bobthetester {"baseRef": "origin/main", "dryRun": false}
+/bobthetester The onboarding flow must capture required fields and activate the user account...
 ```
 
 BobTheTester will:
-1. Review your code changes and report findings by severity
+1. Evaluate how well your code changes cover the business policy requirements
 2. Generate any missing Playwright regression tests for impacted business flows
-3. Run the tests and report pass/fail results
+3. Run the tests and collect branch coverage data
 4. Ask targeted questions if the business policy is incomplete
-5. Output a structured report with risk level and recommended actions
+5. Generate an interactive HTML dashboard with D3.js visualizations
+6. Output a structured terminal report with risk level and recommended actions
 
 ### From the command line (without Claude)
 
@@ -117,17 +127,15 @@ npm run suite
 # Validate suite completeness
 npm run suite:check
 
-# Run a full unified review (regression + code review)
+# Run a full unified review (regression + policy coverage)
 npm run unified-review -- '{"baseRef":"origin/main","headRef":"HEAD","dryRun":false}'
 
 # Run only regression review
 npm run review -- '{"baseRef":"origin/main","headRef":"HEAD","dryRun":false}'
 
-# Run only code review
-npm run code-review -- '{"baseRef":"origin/main","headRef":"HEAD"}'
-
 # Run a single MCP tool directly
 npm run tool -- get_changed_files '{"baseRef":"origin/main","headRef":"HEAD"}'
+npm run tool -- evaluate_policy_coverage '{"baseRef":"origin/main"}'
 ```
 
 ## Project structure
@@ -138,7 +146,7 @@ BobTheTester/
     bobthetester.md              # Claude slash command definition
   config/regression/
     business-review-policy.json  # Business flows, invariants, required coverage
-    code-review-policy.json      # Deterministic code review rules
+    code-review-policy.json      # Legacy code review rules (still available as standalone tool)
     flow-map.json                # Changed files -> business flow mapping
     flow-spec-map.json           # Business flow -> Playwright spec mapping
     tooling.json                 # Execution config (git refs, Playwright, reports)
@@ -151,7 +159,7 @@ BobTheTester/
       server.ts                  # MCP server (stdio transport)
       cli.ts                     # CLI wrapper for local use
       review.ts                  # Regression review orchestrator
-      unified-review.ts          # Unified review orchestrator (regression + code review)
+      unified-review.ts          # Unified review orchestrator (regression + policy coverage)
       tool-registry.ts           # MCP tool registration
       types.ts                   # TypeScript type definitions
       config.ts                  # Config loaders and path resolution
@@ -180,16 +188,13 @@ Placeholder values (`<set-...>`, `TODO`, `TBD`) are detected automatically and t
 
 Maps source file glob patterns to business flow IDs. When a file matching `src/onboarding/**` changes, the `user-onboarding` flow is flagged as impacted.
 
-### Code review policy (`code-review-policy.json`)
+### Code review policy (`code-review-policy.json`) — legacy
 
-Defines deterministic rules for code review:
-- **sensitivePathRules**: flag changes to auth, permissions, config files
-- **addedLineChecks**: detect `debugger`, `console.log`, `@ts-ignore`, `TODO/FIXME`
-- **maxChangedFiles / maxChangedLinesPerFile**: flag oversized changes
+Defines deterministic rules for the legacy code review tool (`generate_code_review_report`). This tool is still available but is no longer used by the unified review pipeline, which uses `evaluate_policy_coverage` instead.
 
 ## MCP tools
 
-BobTheTester exposes 14 MCP tools, all deterministic:
+BobTheTester exposes 16 MCP tools, all deterministic:
 
 | Tool | Purpose |
 |------|---------|
@@ -204,9 +209,11 @@ BobTheTester exposes 14 MCP tools, all deterministic:
 | `suggest_missing_tests` | Identify unmapped files and flows without specs |
 | `suggest_policy_clarifications` | Surface incomplete/placeholder policy values |
 | `read_business_review_policy` | Read the business policy file |
-| `generate_code_review_report` | Run deterministic code review checks |
+| `evaluate_policy_coverage` | Measure how well code covers policy requirements |
+| `generate_code_review_report` | Run deterministic code review checks (legacy) |
+| `generate_html_report` | Generate interactive HTML dashboard with D3.js |
 | `generate_regression_review` | Full regression review pipeline |
-| `generate_unified_review` | Combined regression + code review in one call |
+| `generate_unified_review` | Combined regression + policy coverage in one call |
 
 ## Quality gates
 
@@ -215,8 +222,8 @@ The unified review evaluates three independent gates:
 | Gate | Passes when |
 |------|-------------|
 | **Suite completeness** | All impacted flows have implemented (non-scaffold) Playwright tests |
+| **Policy coverage** | Overall policy coverage score >= 70% |
 | **Regression risk** | Regression risk is `low` or `medium` |
-| **Code review risk** | Code review risk is `low` or `medium` |
 
 The combined gate passes only when all three pass. Risk levels: `low` < `medium` < `high` < `critical`.
 
@@ -227,6 +234,27 @@ Generated tests start with `[status:scaffold]` and block quality gates until pro
 1. Replace the scaffold placeholder with real page interactions and assertions
 2. Change `[status:scaffold]` to `[status:implemented]` in the test title
 3. Re-run `npm run suite:check` to verify
+
+### Policy coverage scoring
+
+Each impacted flow gets a coverage score (0-100%) based on three weighted dimensions:
+
+| Dimension | Weight | What it measures |
+|-----------|--------|-----------------|
+| **Regression scenarios** | 50% | How many `minimumRegressionCoverage` scenarios have `[status:implemented]` tests |
+| **Must-hold invariants** | 30% | How many `mustHold` invariants are covered by implemented test titles |
+| **Branch coverage** | 20% | V8 branch coverage from Playwright execution (via monocart-reporter) |
+
+### Interactive HTML dashboard
+
+After each run, BobTheTester generates an interactive HTML report at `artifacts/report.html` with:
+
+- **Treemap**: coverage by flow, sized by number of scenarios, colored by score (green/yellow/red)
+- **Global radar chart**: all flows compared on one spider chart
+- **Per-flow radar**: click a flow to see must-hold, regression, and branch coverage on 3 axes
+- **Quality gates table**, recommended actions, and warnings
+
+Open it in any browser — no server needed.
 
 ## Development
 
@@ -257,6 +285,8 @@ npm run build
 | Regression gate fails with green tests | Check for `[status:scaffold]` scenarios on impacted flows |
 | High risk despite implemented flows | Check `clarificationQuestions` for blocking policy gaps |
 | Report format not supported | Only JSON format is implemented; set `reportFormat: "json"` |
+| HTML dashboard not generated | Ensure `generate_html_report` is called with unified review output; check `artifacts/report.html` |
+| Branch coverage always 0% | Run Playwright tests with `dryRun: false`; monocart-reporter collects V8 coverage only during real execution |
 
 ## Documentation
 

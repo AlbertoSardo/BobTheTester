@@ -11,6 +11,8 @@ export type ToolName =
   | "suggest_policy_clarifications"
   | "read_business_review_policy"
   | "generate_code_review_report"
+  | "evaluate_policy_coverage"
+  | "generate_html_report"
   | "generate_unified_review"
   | "generate_regression_review";
 
@@ -59,6 +61,8 @@ export interface ToolingConfig {
     htmlReportDir: string;
     tracesDir: string;
     resultsDir: string;
+    coverageReportPath: string;
+    coverageDir: string;
   };
 }
 
@@ -354,6 +358,58 @@ export interface CodeReviewReportOutput extends BaseToolResponse {
   recommendedActions: string[];
 }
 
+export interface EvaluatePolicyCoverageInput {
+  changedFiles?: string[];
+  policyPath?: string;
+  flowMapPath?: string;
+  flowSpecMapPath?: string;
+  coverageReportPath?: string;
+  baseRef?: string;
+  headRef?: string;
+  includeUntracked?: boolean;
+  repoRoot?: string;
+}
+
+export interface UncoveredBranch {
+  file: string;
+  line: number;
+  type: string;
+}
+
+export interface FlowCoverageScore {
+  flowId: string;
+  overallScore: number;
+  mustHoldCoverage: number;
+  regressionCoverage: number;
+  branchCoverage: number;
+  totalMustHold: number;
+  coveredMustHold: number;
+  uncoveredMustHold: string[];
+  totalScenarios: number;
+  implementedScenarios: number;
+  scaffoldScenarios: number;
+  uncoveredScenarios: string[];
+  uncoveredBranches: UncoveredBranch[];
+}
+
+export interface EvaluatePolicyCoverageOutput extends BaseToolResponse {
+  tool: "evaluate_policy_coverage";
+  version: number;
+  generatedAt: string;
+  repoRoot: string;
+  policyPath: string;
+  inputs: {
+    changedFiles: string[];
+    impactedFlowIds: string[];
+  };
+  flowScores: FlowCoverageScore[];
+  overallScore: number;
+  coverageGatePassed: boolean;
+  coverageGateThreshold: number;
+  riskLevel: RiskLevel;
+  recommendedActions: string[];
+}
+
 export interface RegressionReviewInput {
   baseRef?: string;
   headRef?: string;
@@ -439,6 +495,18 @@ export interface RegressionReviewOutput {
   warnings: string[];
 }
 
+export interface GenerateHtmlReportInput {
+  unifiedReviewOutput?: UnifiedReviewOutput;
+  outputPath?: string;
+  repoRoot?: string;
+}
+
+export interface GenerateHtmlReportOutput extends BaseToolResponse {
+  tool: "generate_html_report";
+  outputPath: string;
+  generatedAt: string;
+}
+
 export interface UnifiedReviewInput extends RegressionReviewInput {
   regressionPolicyPath?: string;
   codeReviewPolicyPath?: string;
@@ -457,12 +525,12 @@ export interface UnifiedReviewOutput extends BaseToolResponse {
     dryRun: boolean;
   };
   regressionReview: RegressionReviewOutput;
-  codeReview: CodeReviewReportOutput;
+  policyCoverage: EvaluatePolicyCoverageOutput;
   overallRiskLevel: RiskLevel;
   overallRecommendedActions: string[];
   qualityGates: {
     suiteCompletenessGatePassed: boolean;
-    codeReviewRiskGatePassed: boolean;
+    policyCoverageGatePassed: boolean;
     regressionRiskGatePassed: boolean;
     combinedGatePassed: boolean;
   };

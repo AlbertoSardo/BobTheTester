@@ -1,5 +1,5 @@
 import { generateRegressionReview } from "./review.js";
-import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
+import { evaluatePolicyCoverage } from "./tools/evaluate-policy-coverage.js";
 import type { RegressionReviewOutput, RiskLevel, UnifiedReviewInput, UnifiedReviewOutput } from "./types.js";
 import { uniqueSorted } from "./utils/helpers.js";
 
@@ -88,32 +88,31 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
     dryRun,
   });
 
-  const codeReview = await generateCodeReviewReport({
-    baseRef: input.baseRef,
-    headRef: input.headRef,
-    includeUntracked,
+  const policyCoverage = await evaluatePolicyCoverage({
     changedFiles: regressionReview.inputs.changedFiles,
-    policyPath: input.codeReviewPolicyPath,
+    policyPath: input.policyPath,
+    flowMapPath: input.flowMapPath,
+    flowSpecMapPath: input.flowSpecMapPath,
     repoRoot: regressionReview.repoRoot,
   });
 
-  const overallRiskLevel = maxRiskLevel([regressionReview.riskLevel, codeReview.riskLevel]);
+  const overallRiskLevel = maxRiskLevel([regressionReview.riskLevel, policyCoverage.riskLevel]);
 
   const overallRecommendedActions = uniqueSorted([
     ...deriveRegressionActions(regressionReview),
-    ...codeReview.recommendedActions,
+    ...policyCoverage.recommendedActions,
   ]);
 
   const suiteCompletenessGatePassed = regressionReview.suiteCompleteness.isComplete;
   const regressionRiskGatePassed =
     regressionReview.riskLevel === "low" || regressionReview.riskLevel === "medium";
-  const codeReviewRiskGatePassed = codeReview.riskLevel === "low" || codeReview.riskLevel === "medium";
+  const policyCoverageGatePassed = policyCoverage.coverageGatePassed;
 
   const qualityGates = {
     suiteCompletenessGatePassed,
-    codeReviewRiskGatePassed,
+    policyCoverageGatePassed,
     regressionRiskGatePassed,
-    combinedGatePassed: suiteCompletenessGatePassed && codeReviewRiskGatePassed && regressionRiskGatePassed,
+    combinedGatePassed: suiteCompletenessGatePassed && policyCoverageGatePassed && regressionRiskGatePassed,
   };
 
   return {
@@ -129,10 +128,10 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
       dryRun,
     },
     regressionReview,
-    codeReview,
+    policyCoverage,
     overallRiskLevel,
     overallRecommendedActions,
     qualityGates,
-    warnings: uniqueSorted([...regressionReview.warnings, ...codeReview.warnings]),
+    warnings: uniqueSorted([...regressionReview.warnings, ...policyCoverage.warnings]),
   };
 }

@@ -1,7 +1,7 @@
 # Regression MCP Status
 
 ## Current milestone
-- `milestone-13 (completed): code quality hardening, architecture cleanup, and tooling ergonomics`
+- `milestone-14 (completed): policy coverage review, interactive HTML dashboard, and input flexibility`
 
 ## Decisions made
 - Keep MCP tools deterministic and side-effect scoped; no business reasoning inside tools.
@@ -15,6 +15,10 @@
 - Use `.git/` as repository root marker instead of `AGENTS.md` for reliability.
 - JSON output schemas are reference-only documentation; no runtime validation (avoids extra dependencies).
 - ESLint (strict TypeScript) + Prettier are enforced on all source code.
+- Code review replaced with policy coverage evaluation: measures how well code changes cover business policy requirements.
+- Branch coverage (not just line coverage) is the primary code-level metric.
+- Interactive HTML dashboard with D3.js for visual coverage reporting.
+- Input accepts any format: JSON, PDF, Markdown, plain text, or pasted ticket content.
 
 ## Progress log
 - Scaffolded and hardened `tools/regression-mcp/` as a standalone TypeScript MCP package.
@@ -45,6 +49,17 @@
   - Improved `read_playwright_report` to return explicit `unsupported-format` status instead of silent `stub` for non-JSON formats.
   - Documented JSON output schemas as reference-only (added `$comment` to all 3 schema files).
   - Parallelized independent orchestration steps in `review.ts` using `Promise.all()` for better performance.
+- **milestone-14**: Policy coverage review, interactive dashboard, and input flexibility:
+  - Replaced generic code review with `evaluate_policy_coverage` tool measuring must-hold invariant coverage, regression scenario coverage, and branch coverage per business flow.
+  - Configured Playwright with monocart-reporter for V8 branch coverage collection.
+  - Updated `generate_unified_review` to use policy coverage instead of code review; quality gates now include `policyCoverageGatePassed` (threshold: 70%).
+  - Created `generate_html_report` tool producing a self-contained interactive HTML dashboard with D3.js:
+    - Treemap visualization of coverage by flow (click to drill down)
+    - Global radar chart comparing flow coverage
+    - Per-flow radar with must-hold, regression, and branch dimensions
+    - Quality gates table, recommended actions, and warnings
+  - Updated `/bobthetester` prompt to generate HTML dashboard automatically and support free-form text input (pasted ticket content).
+  - Updated Mermaid diagram in README to show policy coverage path and HTML dashboard generation.
 
 ## Latest validation snapshot
 - Run from project root or `tools/regression-mcp/`:

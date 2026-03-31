@@ -13,9 +13,14 @@ You review code changes in the current PR, generate any missing Playwright regre
 `$ARGUMENTS` can be:
 - A file path to the business review policy in any format (`.json`, `.pdf`, `.md`, `.docx`, `.txt`, etc.)
 - A JSON object with explicit fields (e.g. `{"policyPath": "...", "baseRef": "origin/main"}`)
+- Plain text (e.g. pasted content from a Jira ticket, a feature description, or any free-form requirements text)
 - Empty (uses defaults from project config)
 
-If `$ARGUMENTS` is a plain file path (not JSON), treat it as the policy source file.
+**How to determine the input type:**
+1. If `$ARGUMENTS` starts with `{`, treat it as a JSON object.
+2. If `$ARGUMENTS` looks like a file path (contains `/` or `\`, or ends with a known extension like `.json`, `.pdf`, `.md`, `.txt`, `.docx`), treat it as a file path to the policy source.
+3. Otherwise, treat it as **free-form text** (e.g. a pasted ticket description or requirements). Apply the same conversion logic as Step 0 to extract business flows and generate the policy JSON.
+
 Always force `dryRun: false` and `includeUntracked: true` unless explicitly overridden.
 
 ## Execution steps
@@ -74,6 +79,8 @@ If the policy source file is **not** a `.json` file (e.g. it is a PDF, Markdown,
    - Which fields were left as placeholders
    - Then proceed automatically to step 1 (do not wait for confirmation).
 
+If the input is **free-form text** (e.g. pasted ticket content), treat the text itself as the document to extract flows from — do not try to read it as a file path. Apply the same extraction and generation logic as above.
+
 If the policy source file **is** a `.json` file, skip this step and use it directly as `policyPath`.
 
 ### Step 1 — Read the business policy
@@ -100,7 +107,17 @@ This single call performs the entire pipeline:
 
 If the result contains `clarificationQuestions` with `blocking: true` items, ask the user the top 3 highest-priority questions. Wait for answers before proceeding. If nothing is blocking, continue automatically.
 
-### Step 4 — Produce the terminal report
+### Step 4 — Generate HTML dashboard
+
+Call `generate_html_report` with the full `generate_unified_review` output as `unifiedReviewOutput`. This generates an interactive HTML dashboard at `artifacts/report.html` with:
+- Treemap visualization of coverage by flow (click to drill down)
+- Radar chart showing flow coverage comparison
+- Per-flow radar with must-hold, regression, and branch dimensions
+- Quality gates table and recommended actions
+
+After generating, tell the user: "Interactive report generated: artifacts/report.html"
+
+### Step 5 — Produce the terminal report
 
 Format the output as described below. Do NOT dump raw JSON. Present a human-readable report.
 
@@ -111,16 +128,24 @@ Present the report in this order, using clear section headers:
 ### 1. Summary
 One-paragraph overview: how many files changed, which business flows are impacted, overall risk level, whether quality gates passed.
 
-### 2. Code Review Findings
-- Total files analyzed, added/removed lines
-- Findings grouped by category (sensitive paths, added-line checks, oversized changes)
-- For each finding: file path, line number (if applicable), severity, description
-- Code review risk level
+### 2. Policy Coverage Analysis
+For each impacted business flow, show:
+- **Flow ID** and overall coverage score (0-100%)
+- **Must-hold invariants**: how many covered vs total, list any uncovered invariants
+- **Regression scenarios**: how many implemented vs scaffold vs missing, list uncovered scenarios
+- **Branch coverage**: percentage of code branches covered by Playwright tests (if coverage data available)
+
+Show a compact per-flow summary like:
+```
+user-onboarding:    85%  (must-hold: 3/3, scenarios: 2/3 implemented, branches: 72%)
+profile-edit:       40%  (must-hold: 1/3, scenarios: 0/3 implemented, branches: 0%)
+```
+
+Overall policy coverage score and whether the coverage gate passed (threshold: 70%).
 
 ### 3. Regression Test Coverage
-- Which business flows were impacted by the changes
 - Which Playwright specs were generated or updated (list new scaffold files)
-- Suite completeness status: which scenarios are covered, which are scaffold-only, which are missing
+- Suite completeness status per flow
 - If specs were generated, show the file paths so the user knows what was created
 
 ### 4. Playwright Execution Results
@@ -130,7 +155,7 @@ One-paragraph overview: how many files changed, which business flows are impacte
 
 ### 5. Quality Gates
 - Suite completeness gate: passed/failed
-- Code review risk gate: passed/failed
+- Policy coverage gate: passed/failed (score vs threshold)
 - Regression risk gate: passed/failed
 - Combined gate: passed/failed
 
@@ -141,6 +166,6 @@ Prioritized list of concrete next steps the developer should take, derived from 
 
 - Use only deterministic MCP tools. Never fabricate findings or test results.
 - If `selectedSpecs` is empty, treat skipped Playwright execution as expected — do not run a full suite.
-- Keep code review findings separate from regression findings.
+- Keep policy coverage findings separate from regression execution results.
 - Be concise. The report should be scannable in a terminal.
 - Do not output raw JSON blocks unless the user explicitly asks for them.

@@ -20,6 +20,8 @@
     "testResultsDir": "test-results",
     "htmlReportDir": "playwright-report",
     "tracesDir": "test-results",
-    "resultsDir": "artifacts/playwright"
+    "resultsDir": "artifacts/playwright",
+    "coverageReportPath": "artifacts/playwright/coverage/coverage-report.json",
+    "coverageDir": "artifacts/playwright/coverage"
   }
 }

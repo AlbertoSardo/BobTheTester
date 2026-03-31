@@ -1,6 +1,8 @@
 import { generatePlaywrightSuite } from "./tools/generate-playwright-suite.js";
 import { collectArtifacts } from "./tools/collect-artifacts.js";
+import { evaluatePolicyCoverage } from "./tools/evaluate-policy-coverage.js";
 import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
+import { generateHtmlReport } from "./tools/generate-html-report.js";
 import { getChangedFiles } from "./tools/get-changed-files.js";
 import { listRelevantPlaywrightSpecs } from "./tools/list-relevant-playwright-specs.js";
 import { mapImpactedFlows } from "./tools/map-impacted-flows.js";
@@ -15,6 +17,8 @@ import { validatePlaywrightSuite } from "./tools/validate-playwright-suite.js";
 import type {
   CodeReviewReportInput,
   CollectArtifactsInput,
+  EvaluatePolicyCoverageInput,
+  GenerateHtmlReportInput,
   GeneratePlaywrightSuiteInput,
   GetChangedFilesInput,
   JsonSchema,
@@ -216,6 +220,20 @@ function toReadBusinessReviewPolicyInput(input: Record<string, unknown>): ReadBu
   };
 }
 
+function toEvaluatePolicyCoverageInput(input: Record<string, unknown>): EvaluatePolicyCoverageInput {
+  return {
+    changedFiles: readOptionalStringArray(input, "changedFiles"),
+    policyPath: readOptionalString(input, "policyPath"),
+    flowMapPath: readOptionalString(input, "flowMapPath"),
+    flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
+    coverageReportPath: readOptionalString(input, "coverageReportPath"),
+    baseRef: readOptionalString(input, "baseRef"),
+    headRef: readOptionalString(input, "headRef"),
+    includeUntracked: readOptionalBoolean(input, "includeUntracked"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
 function toRegressionReviewInput(input: Record<string, unknown>): RegressionReviewInput {
   const reportFormat = readOptionalString(input, "reportFormat");
   if (
@@ -274,6 +292,15 @@ function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInpu
     reportPath: readOptionalString(input, "reportPath"),
     reportFormat,
     extraArgs: readOptionalStringArray(input, "extraArgs"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
+function toGenerateHtmlReportInput(input: Record<string, unknown>): GenerateHtmlReportInput {
+  const unifiedReviewOutput = input.unifiedReviewOutput as GenerateHtmlReportInput["unifiedReviewOutput"];
+  return {
+    unifiedReviewOutput,
+    outputPath: readOptionalString(input, "outputPath"),
     repoRoot: readOptionalString(input, "repoRoot"),
   };
 }
@@ -486,6 +513,30 @@ export const registeredTools: RegisteredTool[] = [
     handler: async (input) => readBusinessReviewPolicy(toReadBusinessReviewPolicyInput(input)),
   },
   {
+    name: "evaluate_policy_coverage",
+    description:
+      "Evaluates how well the code changes cover business policy requirements (must-hold invariants, regression scenarios, branch coverage).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        changedFiles: {
+          type: "array",
+          items: { type: "string" },
+        },
+        policyPath: { type: "string" },
+        flowMapPath: { type: "string" },
+        flowSpecMapPath: { type: "string" },
+        coverageReportPath: { type: "string" },
+        baseRef: { type: "string" },
+        headRef: { type: "string" },
+        includeUntracked: { type: "boolean" },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => evaluatePolicyCoverage(toEvaluatePolicyCoverageInput(input)),
+  },
+  {
     name: "generate_code_review_report",
     description: "Runs deterministic code-review checks and returns structured findings.",
     inputSchema: {
@@ -576,6 +627,24 @@ export const registeredTools: RegisteredTool[] = [
       additionalProperties: false,
     },
     handler: async (input) => generateUnifiedReview(toUnifiedReviewInput(input)),
+  },
+  {
+    name: "generate_html_report",
+    description:
+      "Generates an interactive HTML dashboard with D3.js visualizations from unified review output.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        unifiedReviewOutput: {
+          type: "object",
+          description: "The full output from generate_unified_review",
+        },
+        outputPath: { type: "string" },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => generateHtmlReport(toGenerateHtmlReportInput(input)),
   },
 ];
 
