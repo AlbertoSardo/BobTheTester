@@ -1,20 +1,4 @@
 import type { JsonValue } from "../types.js";
-import { toSortedUnique } from "./fs.js";
-
-/**
- * Deduplicate and sort an array of strings.
- * Delegates to toSortedUnique from utils/fs.
- */
-export function uniqueSorted(values: string[]): string[] {
-  return toSortedUnique(values);
-}
-
-/**
- * Deduplicate and sort an array of strings, filtering out empty strings first.
- */
-export function uniqueSortedNonEmpty(values: string[]): string[] {
-  return toSortedUnique(values.filter((value) => value.length > 0));
-}
 
 /**
  * Safely cast a JsonValue to a Record<string, JsonValue> if it is a plain object.

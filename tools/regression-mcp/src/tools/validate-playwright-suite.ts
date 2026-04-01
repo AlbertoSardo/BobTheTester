@@ -10,31 +10,19 @@ import {
   resolveFromRepoRoot,
 } from "../config.js";
 import type {
-  JsonValue,
   ScenarioImplementationStatus,
   ValidatePlaywrightSuiteFlowResult,
   ValidatePlaywrightSuiteInput,
   ValidatePlaywrightSuiteOutput,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-import { asObjectRecord, asStringArray } from "../utils/helpers.js";
-import { parseCoverageTitle, toScenarioId } from "../utils/scaffold.js";
-
-function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, string[]> {
-  const flowsRecord = asObjectRecord(policy.flows);
-  if (!flowsRecord) {
-    return {};
-  }
-
-  const coverageByFlow: Record<string, string[]> = {};
-
-  for (const [flowId, flowPolicyValue] of Object.entries(flowsRecord)) {
-    const flowPolicy = asObjectRecord(flowPolicyValue);
-    coverageByFlow[flowId] = toSortedUnique(asStringArray(flowPolicy?.minimumRegressionCoverage));
-  }
-
-  return coverageByFlow;
-}
+import {
+  createTestTitlePattern,
+  extractFlowCoverage,
+  extractTestTitle,
+  parseCoverageTitle,
+  toScenarioId,
+} from "../utils/scaffold.js";
 
 interface CoverageEntry {
   scenarioTitle: string;
@@ -49,12 +37,11 @@ function extractCoverageEntries(
 ): { entries: CoverageEntry[]; warnings: string[] } {
   const entries: CoverageEntry[] = [];
   const warnings: string[] = [];
-  const testTitlePattern =
-    /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
+  const testTitlePattern = createTestTitlePattern();
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
-    const title = match[1] ?? match[2] ?? match[3] ?? "";
+    const title = extractTestTitle(match);
     const parsed = parseCoverageTitle(title);
     if (parsed) {
       const scenarioId = parsed.scenarioId ?? toScenarioId(flowId, parsed.scenarioTitle);

@@ -13,19 +13,21 @@ import {
 import type {
   GeneratePlaywrightSuiteInput,
   GeneratePlaywrightSuiteOutput,
-  JsonValue,
   ScenarioImplementationStatus,
 } from "../types.js";
 import { toSortedUnique } from "../utils/fs.js";
-import { asObjectRecord, asStringArray } from "../utils/helpers.js";
-import { buildCoverageTitle, parseCoverageTitle, toScenarioId } from "../utils/scaffold.js";
-
-function normalizePath(filePath: string): string {
-  return filePath.replace(/\\/g, "/");
-}
+import { normalizeForMatch } from "../utils/pattern.js";
+import {
+  buildCoverageTitle,
+  createTestTitlePattern,
+  extractFlowCoverage,
+  extractTestTitle,
+  parseCoverageTitle,
+  toScenarioId,
+} from "../utils/scaffold.js";
 
 function toRelative(repoRoot: string, absolutePath: string): string {
-  return normalizePath(path.relative(repoRoot, absolutePath));
+  return normalizeForMatch(path.relative(repoRoot, absolutePath));
 }
 
 function escapeForQuote(value: string, quote: '"' | "'" | "`"): string {
@@ -40,23 +42,6 @@ function escapeForQuote(value: string, quote: '"' | "'" | "`"): string {
   return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
 }
 
-function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, string[]> {
-  const flowsRecord = asObjectRecord(policy.flows);
-  if (!flowsRecord) {
-    return {};
-  }
-
-  const coverageByFlow: Record<string, string[]> = {};
-
-  for (const [flowId, flowPolicyValue] of Object.entries(flowsRecord)) {
-    const flowPolicy = asObjectRecord(flowPolicyValue);
-    const minimumCoverage = toSortedUnique(asStringArray(flowPolicy?.minimumRegressionCoverage));
-    coverageByFlow[flowId] = minimumCoverage;
-  }
-
-  return coverageByFlow;
-}
-
 interface ExistingCoverageEntry {
   scenarioId: string;
   status: ScenarioImplementationStatus;
@@ -67,12 +52,11 @@ function extractExistingCoverageEntries(
   flowId: string,
 ): Record<string, ExistingCoverageEntry> {
   const entries: Record<string, ExistingCoverageEntry> = {};
-  const testTitlePattern =
-    /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
+  const testTitlePattern = createTestTitlePattern();
   let match = testTitlePattern.exec(specContent);
 
   while (match) {
-    const title = match[1] ?? match[2] ?? match[3] ?? "";
+    const title = extractTestTitle(match);
     const parsed = parseCoverageTitle(title);
 
     if (!parsed) {

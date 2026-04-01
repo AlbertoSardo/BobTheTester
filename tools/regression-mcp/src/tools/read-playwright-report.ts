@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { fileExists, findRepositoryRoot, loadToolingConfig, resolveFromRepoRoot } from "../config.js";
 import type { ReadPlaywrightReportInput, ReadPlaywrightReportOutput } from "../types.js";
-import { uniqueSortedNonEmpty } from "../utils/helpers.js";
+import { toSortedUnique } from "../utils/fs.js";
 
 function safeNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -51,13 +51,7 @@ function summarizePlaywrightJson(payload: Record<string, unknown>): ParsedSummar
     const statusRaw = lastResult ? safeString(lastResult.status) : "";
 
     const status: "passed" | "failed" | "skipped" =
-      statusRaw === "passed"
-        ? "passed"
-        : statusRaw === "skipped"
-          ? "skipped"
-          : statusRaw === "failed" || statusRaw === "timedOut" || statusRaw === "interrupted"
-            ? "failed"
-            : "passed";
+      statusRaw === "passed" ? "passed" : statusRaw === "skipped" ? "skipped" : "failed";
 
     const errorRecord =
       lastResult && typeof lastResult.error === "object" && lastResult.error
@@ -171,9 +165,30 @@ function summarizePlaywrightJson(payload: Record<string, unknown>): ParsedSummar
       pending: 0,
       durationMs,
     },
-    failures: uniqueSortedNonEmpty(failures),
-    failedSpecFiles: uniqueSortedNonEmpty(failedSpecFiles),
-    warnings: uniqueSortedNonEmpty(warnings),
+    failures: toSortedUnique(failures.filter((v) => v.length > 0)),
+    failedSpecFiles: toSortedUnique(failedSpecFiles.filter((v) => v.length > 0)),
+    warnings: toSortedUnique(warnings.filter((v) => v.length > 0)),
+  };
+}
+
+function makeEmptyReport(
+  overrides: Partial<ReadPlaywrightReportOutput> & Pick<ReadPlaywrightReportOutput, "status" | "warnings">,
+): ReadPlaywrightReportOutput {
+  return {
+    tool: "read_playwright_report",
+    reportPath: "",
+    reportFormat: "json",
+    totals: {
+      tests: 0,
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      pending: 0,
+      durationMs: 0,
+    },
+    failures: [],
+    failedSpecFiles: [],
+    ...overrides,
   };
 }
 
@@ -187,23 +202,7 @@ export async function readPlaywrightReport(
   const warnings: string[] = [];
 
   if (!(await fileExists(reportPath))) {
-    return {
-      tool: "read_playwright_report",
-      reportPath,
-      reportFormat,
-      status: "missing",
-      totals: {
-        tests: 0,
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        pending: 0,
-        durationMs: 0,
-      },
-      failures: [],
-      failedSpecFiles: [],
-      warnings,
-    };
+    return makeEmptyReport({ reportPath, reportFormat, status: "missing", warnings });
   }
 
   if (reportFormat !== "json") {
@@ -211,23 +210,7 @@ export async function readPlaywrightReport(
       `Report format '${reportFormat}' is not supported. Only 'json' format is currently implemented. ` +
         `Configure reportFormat: "json" in tooling.json or pass reportFormat: "json" explicitly.`,
     );
-    return {
-      tool: "read_playwright_report",
-      reportPath,
-      reportFormat,
-      status: "unsupported-format",
-      totals: {
-        tests: 0,
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        pending: 0,
-        durationMs: 0,
-      },
-      failures: [],
-      failedSpecFiles: [],
-      warnings,
-    };
+    return makeEmptyReport({ reportPath, reportFormat, status: "unsupported-format", warnings });
   }
 
   try {
@@ -235,23 +218,12 @@ export async function readPlaywrightReport(
     const parsed = JSON.parse(raw) as unknown;
 
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return {
-        tool: "read_playwright_report",
+      return makeEmptyReport({
         reportPath,
         reportFormat,
         status: "invalid",
-        totals: {
-          tests: 0,
-          passed: 0,
-          failed: 0,
-          skipped: 0,
-          pending: 0,
-          durationMs: 0,
-        },
-        failures: [],
-        failedSpecFiles: [],
         warnings: ["JSON report payload is not an object."],
-      };
+      });
     }
 
     const summary = summarizePlaywrightJson(parsed as Record<string, unknown>);
@@ -267,22 +239,6 @@ export async function readPlaywrightReport(
     };
   } catch (error) {
     warnings.push(error instanceof Error ? error.message : String(error));
-    return {
-      tool: "read_playwright_report",
-      reportPath,
-      reportFormat,
-      status: "invalid",
-      totals: {
-        tests: 0,
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        pending: 0,
-        durationMs: 0,
-      },
-      failures: [],
-      failedSpecFiles: [],
-      warnings,
-    };
+    return makeEmptyReport({ reportPath, reportFormat, status: "invalid", warnings });
   }
 }

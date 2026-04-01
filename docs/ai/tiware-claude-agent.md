@@ -89,7 +89,7 @@ Se vuoi testare subito il comportamento senza integrare Claude Desktop:
 
 ```bash
 npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
-npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}'
+npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"project":"chromium"}'
 ```
 
 Questo produce lo stesso output strutturato che Claude dovrebbe usare come base oggettiva.
@@ -103,7 +103,7 @@ Uso:
 
 ```text
 /bobthetester
-/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}
+/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"project":"chromium"}
 ```
 
 Il comando e` progettato per:

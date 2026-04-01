@@ -116,7 +116,7 @@ npm --prefix tools/regression-mcp run tool -- run_playwright '{"specs":["playwri
 Real run:
 
 ```bash
-npm --prefix tools/regression-mcp run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":false,"browser":"chromium"}'
+npm --prefix tools/regression-mcp run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":false,"project":"chromium"}'
 ```
 
 ### `read_playwright_report`
@@ -148,7 +148,7 @@ npm --prefix tools/regression-mcp run tool -- read_business_review_policy '{}'
 
 ### `generate_regression_review`
 ```bash
-npm --prefix tools/regression-mcp run tool -- generate_regression_review '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
+npm --prefix tools/regression-mcp run tool -- generate_regression_review '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"project":"chromium"}'
 ```
 
 This one-shot command now includes deterministic sub-steps for impacted flows:
@@ -226,7 +226,7 @@ Recommended update flow:
 Use the structured orchestrated command:
 
 ```bash
-npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
+npm --prefix tools/regression-mcp run review -- '{"changedFiles":["src/features/user-onboarding/step.ts","src/settings/profile/form.ts"],"dryRun":false,"project":"chromium"}'
 ```
 
 Git-diff driven mode:

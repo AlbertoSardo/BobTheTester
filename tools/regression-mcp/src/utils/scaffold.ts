@@ -1,4 +1,6 @@
-import type { ScenarioImplementationStatus } from "../types.js";
+import type { JsonValue, ScenarioImplementationStatus } from "../types.js";
+import { toSortedUnique } from "./fs.js";
+import { asObjectRecord, asStringArray } from "./helpers.js";
 
 export const COVERAGE_TITLE_PREFIX = "covers: ";
 
@@ -84,4 +86,36 @@ export function buildCoverageTitle(
   status: ScenarioImplementationStatus,
 ): string {
   return `${COVERAGE_TITLE_PREFIX}${scenarioTitle} [scenario-id:${scenarioId}] [status:${status}]`;
+}
+
+/**
+ * Creates a fresh global RegExp for extracting test/it titles from spec file content.
+ * Returns a new instance each time to avoid shared lastIndex state.
+ */
+export function createTestTitlePattern(): RegExp {
+  return /\b(?:test|it)\s*\(\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)\s*,/g;
+}
+
+/**
+ * Extracts the test title string from a testTitlePattern match.
+ * Returns the first defined capture group (double-quoted, single-quoted, or template literal).
+ */
+export function extractTestTitle(match: RegExpExecArray): string {
+  return match[1] ?? match[2] ?? match[3] ?? "";
+}
+
+export function extractFlowCoverage(policy: Record<string, JsonValue>): Record<string, string[]> {
+  const flowsRecord = asObjectRecord(policy.flows);
+  if (!flowsRecord) {
+    return {};
+  }
+
+  const coverageByFlow: Record<string, string[]> = {};
+
+  for (const [flowId, flowPolicyValue] of Object.entries(flowsRecord)) {
+    const flowPolicy = asObjectRecord(flowPolicyValue);
+    coverageByFlow[flowId] = toSortedUnique(asStringArray(flowPolicy?.minimumRegressionCoverage));
+  }
+
+  return coverageByFlow;
 }

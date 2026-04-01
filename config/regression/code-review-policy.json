@@ -16,6 +16,12 @@
       "message": "Permission and authorization paths changed. Validate role checks and fallback behavior."
     },
     {
+      "id": "role-files",
+      "pattern": "**/roles/**",
+      "severity": "high",
+      "message": "Role definition files changed. Validate access-control rules and role hierarchy integrity."
+    },
+    {
       "id": "runtime-config",
       "pattern": "config/**/*.json",
       "severity": "medium",

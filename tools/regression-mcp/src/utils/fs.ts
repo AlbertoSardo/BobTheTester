@@ -1,6 +1,8 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
+import { normalizeForMatch } from "./pattern.js";
+
 export async function listFilesRecursively(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files: string[] = [];
@@ -23,4 +25,18 @@ export async function listFilesRecursively(directory: string): Promise<string[]>
 
 export function toSortedUnique(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+}
+
+export function toRepoRelativePath(repoRoot: string, filePath: string): string {
+  const normalizedFile = path.normalize(filePath);
+  if (!path.isAbsolute(normalizedFile)) {
+    return normalizeForMatch(normalizedFile);
+  }
+
+  const relative = path.relative(repoRoot, normalizedFile);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return normalizeForMatch(normalizedFile);
+  }
+
+  return normalizeForMatch(relative);
 }

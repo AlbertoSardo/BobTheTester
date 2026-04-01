@@ -49,7 +49,7 @@ The custom slash command is in `.claude/commands/bobthetester.md`.
 
 Examples:
 - `/bobthetester`
-- `/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}`
+- `/bobthetester {"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"project":"chromium"}`
 
 Behavior:
 - loads conceptual policy with `read_business_review_policy`

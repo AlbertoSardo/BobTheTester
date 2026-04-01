@@ -66,6 +66,19 @@ export interface ToolingConfig {
   };
 }
 
+/**
+ * Base response shape for all MCP tool handlers.
+ *
+ * Error-reporting conventions:
+ * - `warnings[]` — non-fatal issues that do not prevent the tool from returning
+ *   a useful result (e.g. a coverage report that could not be parsed, a config
+ *   file that is missing optional fields).
+ * - Thrown errors — invalid caller input or unrecoverable failures. The MCP
+ *   server translates these into protocol-level error responses.
+ * - Status fields (e.g. `"missing"`, `"skipped"`, `"unsupported-format"`) —
+ *   expected non-success states that the caller may want to branch on. Each
+ *   tool defines its own status enum in its output interface.
+ */
 export interface BaseToolResponse {
   tool: ToolName;
   warnings: string[];
@@ -110,7 +123,7 @@ export interface ListRelevantPlaywrightSpecsInput {
 export interface ListRelevantPlaywrightSpecsOutput extends BaseToolResponse {
   tool: "list_relevant_playwright_specs";
   flowSpecMapPath: string;
-  resolvedSpecs: string[];
+  specPatterns: string[];
   flowToSpecs: Record<string, string[]>;
   flowsWithoutSpecs: string[];
 }
@@ -170,7 +183,7 @@ export interface RunPlaywrightInput {
   specs: string[];
   dryRun?: boolean;
   headed?: boolean;
-  browser?: string;
+  project?: string;
   configFile?: string;
   reportPath?: string;
   reportFormat?: "json" | "junit" | "line";
@@ -420,7 +433,7 @@ export interface RegressionReviewInput {
   flowSpecMapPath?: string;
   dryRun?: boolean;
   headed?: boolean;
-  browser?: string;
+  project?: string;
   configFile?: string;
   reportPath?: string;
   reportFormat?: "json" | "junit" | "line";
@@ -509,7 +522,6 @@ export interface GenerateHtmlReportOutput extends BaseToolResponse {
 
 export interface UnifiedReviewInput extends RegressionReviewInput {
   regressionPolicyPath?: string;
-  codeReviewPolicyPath?: string;
 }
 
 export interface UnifiedReviewOutput extends BaseToolResponse {

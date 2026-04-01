@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import {
   DEFAULT_FLOW_MAP_PATH,
   findRepositoryRoot,
@@ -7,22 +5,8 @@ import {
   resolveFromRepoRoot,
 } from "../config.js";
 import type { MapImpactedFlowsInput, MapImpactedFlowsOutput } from "../types.js";
-import { toSortedUnique } from "../utils/fs.js";
-import { matchesPattern, normalizeForMatch } from "../utils/pattern.js";
-
-function toRepoRelativePath(repoRoot: string, filePath: string): string {
-  const normalizedFile = path.normalize(filePath);
-  if (!path.isAbsolute(normalizedFile)) {
-    return normalizeForMatch(normalizedFile);
-  }
-
-  const relative = path.relative(repoRoot, normalizedFile);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    return normalizeForMatch(normalizedFile);
-  }
-
-  return normalizeForMatch(relative);
-}
+import { toRepoRelativePath, toSortedUnique } from "../utils/fs.js";
+import { matchesPattern } from "../utils/pattern.js";
 
 export async function mapImpactedFlows(input: MapImpactedFlowsInput): Promise<MapImpactedFlowsOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());

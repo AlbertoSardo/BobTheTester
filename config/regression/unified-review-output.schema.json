@@ -11,7 +11,7 @@
     "repoRoot",
     "inputs",
     "regressionReview",
-    "codeReview",
+    "policyCoverage",
     "overallRiskLevel",
     "overallRecommendedActions",
     "qualityGates",
@@ -64,8 +64,9 @@
     "regressionReview": {
       "$ref": "review-output.schema.json"
     },
-    "codeReview": {
-      "$ref": "code-review-output.schema.json"
+    "policyCoverage": {
+      "type": "object",
+      "description": "Output of evaluate_policy_coverage tool"
     },
     "overallRiskLevel": {
       "type": "string",
@@ -86,7 +87,7 @@
       "type": "object",
       "required": [
         "suiteCompletenessGatePassed",
-        "codeReviewRiskGatePassed",
+        "policyCoverageGatePassed",
         "regressionRiskGatePassed",
         "combinedGatePassed"
       ],
@@ -94,7 +95,7 @@
         "suiteCompletenessGatePassed": {
           "type": "boolean"
         },
-        "codeReviewRiskGatePassed": {
+        "policyCoverageGatePassed": {
           "type": "boolean"
         },
         "regressionRiskGatePassed": {

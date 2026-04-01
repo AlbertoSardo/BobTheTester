@@ -4,7 +4,13 @@ import path from "node:path";
 import { generateCodeReviewReport } from "./tools/generate-code-review-report.js";
 import { generateRegressionReview } from "./review.js";
 import { generateUnifiedReview } from "./unified-review.js";
-import { findTool, registeredTools } from "./tool-registry.js";
+import {
+  findTool,
+  registeredTools,
+  toCodeReviewReportInput,
+  toRegressionReviewInput,
+  toUnifiedReviewInput,
+} from "./tool-registry.js";
 
 function usage(): string {
   const toolNames = registeredTools.map((tool) => tool.name).join(", ");
@@ -64,21 +70,24 @@ async function run(): Promise<void> {
   }
 
   if (command === "review") {
-    const input = await parseInputArgument(arg1);
+    const raw = await parseInputArgument(arg1);
+    const input = toRegressionReviewInput(raw);
     const result = await generateRegressionReview(input);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return;
   }
 
   if (command === "code-review") {
-    const input = await parseInputArgument(arg1);
+    const raw = await parseInputArgument(arg1);
+    const input = toCodeReviewReportInput(raw);
     const result = await generateCodeReviewReport(input);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return;
   }
 
   if (command === "unified-review") {
-    const input = await parseInputArgument(arg1);
+    const raw = await parseInputArgument(arg1);
+    const input = toUnifiedReviewInput(raw);
     const result = await generateUnifiedReview(input);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return;
@@ -87,7 +96,11 @@ async function run(): Promise<void> {
   throw new Error(`Unknown command '${command}'.\n\n${usage()}`);
 }
 
-run().catch((error) => {
+async function main() {
+  await run();
+}
+
+main().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });

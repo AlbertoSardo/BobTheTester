@@ -41,7 +41,7 @@ npm run tool -- map_impacted_flows '{"changedFiles":["src/settings/profile/form.
 
 ## Generate structured regression review output
 ```bash
-npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"browser":"chromium"}'
+npm run review -- '{"changedFiles":["src/settings/profile/form.ts"],"dryRun":false,"project":"chromium"}'
 ```
 
 `review` is one-shot and deterministic: it maps changed files, generates/updates impacted-flow suite coverage,

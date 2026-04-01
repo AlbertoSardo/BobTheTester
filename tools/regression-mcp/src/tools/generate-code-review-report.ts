@@ -19,7 +19,8 @@ import type {
   RiskLevel,
 } from "../types.js";
 import { execCommand, isGitRepository } from "../utils/git.js";
-import { asObjectRecord, uniqueSorted } from "../utils/helpers.js";
+import { toRepoRelativePath, toSortedUnique } from "../utils/fs.js";
+import { asObjectRecord } from "../utils/helpers.js";
 import { matchesPattern, normalizeForMatch } from "../utils/pattern.js";
 import { getChangedFiles } from "./get-changed-files.js";
 
@@ -82,20 +83,6 @@ const CODE_FILE_EXTENSIONS = new Set([
   ".scala",
   ".sh",
 ]);
-
-function toRepoRelativePath(repoRoot: string, filePath: string): string {
-  const normalizedPath = path.normalize(filePath);
-  if (!path.isAbsolute(normalizedPath)) {
-    return normalizeForMatch(normalizedPath);
-  }
-
-  const relativePath = path.relative(repoRoot, normalizedPath);
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    return normalizeForMatch(normalizedPath);
-  }
-
-  return normalizeForMatch(relativePath);
-}
 
 function readOptionalNumber(
   value: JsonValue | undefined,
@@ -257,7 +244,7 @@ function shouldApplyAddedLineChecks(filePath: string): boolean {
   return CODE_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
-function deriveRiskLevel(counts: { low: number; medium: number; high: number }): RiskLevel {
+function deriveFindingBasedRiskLevel(counts: { low: number; medium: number; high: number }): RiskLevel {
   if (counts.high >= 2 || (counts.high >= 1 && counts.medium >= 2)) {
     return "critical";
   }
@@ -363,25 +350,24 @@ function createFinding(params: {
   };
 }
 
-export async function generateCodeReviewReport(
-  input: CodeReviewReportInput = {},
-): Promise<CodeReviewReportOutput> {
-  const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
-  const includeUntracked = input.includeUntracked ?? true;
-  const policyPath = input.policyPath ?? DEFAULT_CODE_REVIEW_POLICY_PATH;
-  const warnings: string[] = [];
+// ---------------------------------------------------------------------------
+// Pipeline stage: acquire diff data from git
+// ---------------------------------------------------------------------------
 
-  const { config: toolingConfig } = await loadToolingConfig(repoRoot);
-  const baseRef = input.baseRef ?? toolingConfig.git.defaultBaseRef;
-  const headRef = input.headRef ?? toolingConfig.git.defaultHeadRef;
+interface AcquiredDiffData {
+  normalizedChangedFiles: string[];
+  diffData: Map<string, FileDiffData>;
+  changedFilesOutput: GetChangedFilesOutput | undefined;
+}
 
-  const { path: resolvedPolicyPath, policy } = await loadCodeReviewPolicy(repoRoot, policyPath);
-  const parsedPolicy = parseCodeReviewPolicy(policy, warnings);
-
-  const changedFilesInput = Array.isArray(input.changedFiles)
-    ? uniqueSorted(input.changedFiles.map((filePath) => toRepoRelativePath(repoRoot, filePath)))
-    : undefined;
-
+async function acquireDiffData(
+  repoRoot: string,
+  baseRef: string,
+  headRef: string,
+  includeUntracked: boolean,
+  changedFilesInput: string[] | undefined,
+  warnings: string[],
+): Promise<AcquiredDiffData> {
   let changedFilesOutput: GetChangedFilesOutput | undefined;
 
   if (!changedFilesInput) {
@@ -395,12 +381,12 @@ export async function generateCodeReviewReport(
 
   const changedFiles =
     changedFilesInput ??
-    uniqueSorted([
+    toSortedUnique([
       ...(changedFilesOutput?.changedFiles ?? []),
       ...(changedFilesOutput?.untrackedFiles ?? []),
     ]).map((filePath) => toRepoRelativePath(repoRoot, filePath));
 
-  const normalizedChangedFiles = uniqueSorted(changedFiles.map((filePath) => normalizeForMatch(filePath)));
+  const normalizedChangedFiles = toSortedUnique(changedFiles.map((filePath) => normalizeForMatch(filePath)));
   const diffData = new Map<string, FileDiffData>();
 
   for (const filePath of normalizedChangedFiles) {
@@ -505,6 +491,24 @@ export async function generateCodeReviewReport(
     );
   }
 
+  return { normalizedChangedFiles, diffData, changedFilesOutput };
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline stage: scan files for findings
+// ---------------------------------------------------------------------------
+
+interface ScanResults {
+  sensitivePathChanges: CodeReviewFinding[];
+  addedLineFindings: CodeReviewFinding[];
+  oversizedChangeFindings: CodeReviewFinding[];
+}
+
+function scanForFindings(
+  normalizedChangedFiles: string[],
+  diffData: Map<string, FileDiffData>,
+  parsedPolicy: ParsedCodeReviewPolicy,
+): ScanResults {
   const sensitivePathChanges: CodeReviewFinding[] = [];
   for (const filePath of normalizedChangedFiles) {
     for (const rule of parsedPolicy.sensitivePathRules) {
@@ -605,6 +609,50 @@ export async function generateCodeReviewReport(
     );
   }
 
+  return { sensitivePathChanges, addedLineFindings, oversizedChangeFindings };
+}
+
+// ---------------------------------------------------------------------------
+// Main pipeline coordinator
+// ---------------------------------------------------------------------------
+
+export async function generateCodeReviewReport(
+  input: CodeReviewReportInput = {},
+): Promise<CodeReviewReportOutput> {
+  const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
+  const includeUntracked = input.includeUntracked ?? true;
+  const policyPath = input.policyPath ?? DEFAULT_CODE_REVIEW_POLICY_PATH;
+  const warnings: string[] = [];
+
+  const { config: toolingConfig } = await loadToolingConfig(repoRoot);
+  const baseRef = input.baseRef ?? toolingConfig.git.defaultBaseRef;
+  const headRef = input.headRef ?? toolingConfig.git.defaultHeadRef;
+
+  const { path: resolvedPolicyPath, policy } = await loadCodeReviewPolicy(repoRoot, policyPath);
+  const parsedPolicy = parseCodeReviewPolicy(policy, warnings);
+
+  const changedFilesInput = Array.isArray(input.changedFiles)
+    ? toSortedUnique(input.changedFiles.map((filePath) => toRepoRelativePath(repoRoot, filePath)))
+    : undefined;
+
+  // Stage 1: acquire diff data
+  const { normalizedChangedFiles, diffData, changedFilesOutput } = await acquireDiffData(
+    repoRoot,
+    baseRef,
+    headRef,
+    includeUntracked,
+    changedFilesInput,
+    warnings,
+  );
+
+  // Stage 2: scan for findings
+  const { sensitivePathChanges, addedLineFindings, oversizedChangeFindings } = scanForFindings(
+    normalizedChangedFiles,
+    diffData,
+    parsedPolicy,
+  );
+
+  // Stage 3: aggregate results
   const allFindings = [...sensitivePathChanges, ...addedLineFindings, ...oversizedChangeFindings];
   const findingCounts = {
     low: allFindings.filter((finding) => finding.severity === "low").length,
@@ -613,9 +661,9 @@ export async function generateCodeReviewReport(
     total: allFindings.length,
   };
 
-  const riskLevel = deriveRiskLevel(findingCounts);
+  const riskLevel = deriveFindingBasedRiskLevel(findingCounts);
 
-  const recommendedActions = uniqueSorted(
+  const recommendedActions = toSortedUnique(
     [
       findingCounts.high > 0 ? "Resolve all high-severity code-review findings before merge." : "",
       findingCounts.medium > 0
@@ -689,6 +737,6 @@ export async function generateCodeReviewReport(
     findingCounts,
     riskLevel,
     recommendedActions,
-    warnings: uniqueSorted([...(changedFilesOutput?.warnings ?? []), ...warnings]),
+    warnings: toSortedUnique([...(changedFilesOutput?.warnings ?? []), ...warnings]),
   };
 }

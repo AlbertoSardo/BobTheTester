@@ -1,6 +1,9 @@
 .DS_Store
+.desloppify/
 artifacts/playwright/
 playwright-report/
 test-results/
 tools/regression-mcp/dist/
 tools/regression-mcp/node_modules/
+artifacts/report.html
+scorecard.png

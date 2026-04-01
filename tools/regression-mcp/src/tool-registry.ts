@@ -83,6 +83,19 @@ function readOptionalStringArray(input: Record<string, unknown>, key: string): s
   return value;
 }
 
+function readOptionalReportFormat(input: Record<string, unknown>): "json" | "junit" | "line" | undefined {
+  const reportFormat = readOptionalString(input, "reportFormat");
+  if (
+    typeof reportFormat !== "undefined" &&
+    reportFormat !== "json" &&
+    reportFormat !== "junit" &&
+    reportFormat !== "line"
+  ) {
+    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
+  }
+  return reportFormat;
+}
+
 function toGetChangedFilesInput(input: Record<string, unknown>): GetChangedFilesInput {
   return {
     baseRef: readOptionalString(input, "baseRef"),
@@ -92,7 +105,7 @@ function toGetChangedFilesInput(input: Record<string, unknown>): GetChangedFiles
   };
 }
 
-function toCodeReviewReportInput(input: Record<string, unknown>): CodeReviewReportInput {
+export function toCodeReviewReportInput(input: Record<string, unknown>): CodeReviewReportInput {
   return {
     baseRef: readOptionalString(input, "baseRef"),
     headRef: readOptionalString(input, "headRef"),
@@ -141,21 +154,13 @@ function toValidatePlaywrightSuiteInput(input: Record<string, unknown>): Validat
 }
 
 function toRunPlaywrightInput(input: Record<string, unknown>): RunPlaywrightInput {
-  const reportFormat = readOptionalString(input, "reportFormat");
-  if (
-    typeof reportFormat !== "undefined" &&
-    reportFormat !== "json" &&
-    reportFormat !== "junit" &&
-    reportFormat !== "line"
-  ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
-  }
+  const reportFormat = readOptionalReportFormat(input);
 
   return {
     specs: readRequiredStringArray(input, "specs"),
     dryRun: readOptionalBoolean(input, "dryRun"),
     headed: readOptionalBoolean(input, "headed"),
-    browser: readOptionalString(input, "browser"),
+    project: readOptionalString(input, "project"),
     configFile: readOptionalString(input, "configFile"),
     reportPath: readOptionalString(input, "reportPath"),
     reportFormat,
@@ -165,15 +170,7 @@ function toRunPlaywrightInput(input: Record<string, unknown>): RunPlaywrightInpu
 }
 
 function toReadPlaywrightReportInput(input: Record<string, unknown>): ReadPlaywrightReportInput {
-  const reportFormat = readOptionalString(input, "reportFormat");
-  if (
-    typeof reportFormat !== "undefined" &&
-    reportFormat !== "json" &&
-    reportFormat !== "junit" &&
-    reportFormat !== "line"
-  ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
-  }
+  const reportFormat = readOptionalReportFormat(input);
 
   return {
     reportPath: readOptionalString(input, "reportPath"),
@@ -234,16 +231,8 @@ function toEvaluatePolicyCoverageInput(input: Record<string, unknown>): Evaluate
   };
 }
 
-function toRegressionReviewInput(input: Record<string, unknown>): RegressionReviewInput {
-  const reportFormat = readOptionalString(input, "reportFormat");
-  if (
-    typeof reportFormat !== "undefined" &&
-    reportFormat !== "json" &&
-    reportFormat !== "junit" &&
-    reportFormat !== "line"
-  ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
-  }
+export function toRegressionReviewInput(input: Record<string, unknown>): RegressionReviewInput {
+  const reportFormat = readOptionalReportFormat(input);
 
   return {
     baseRef: readOptionalString(input, "baseRef"),
@@ -255,7 +244,7 @@ function toRegressionReviewInput(input: Record<string, unknown>): RegressionRevi
     flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
     dryRun: readOptionalBoolean(input, "dryRun"),
     headed: readOptionalBoolean(input, "headed"),
-    browser: readOptionalString(input, "browser"),
+    project: readOptionalString(input, "project"),
     configFile: readOptionalString(input, "configFile"),
     reportPath: readOptionalString(input, "reportPath"),
     reportFormat,
@@ -264,16 +253,8 @@ function toRegressionReviewInput(input: Record<string, unknown>): RegressionRevi
   };
 }
 
-function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInput {
-  const reportFormat = readOptionalString(input, "reportFormat");
-  if (
-    typeof reportFormat !== "undefined" &&
-    reportFormat !== "json" &&
-    reportFormat !== "junit" &&
-    reportFormat !== "line"
-  ) {
-    throw new Error("Expected 'reportFormat' to be one of: json, junit, line.");
-  }
+export function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInput {
+  const reportFormat = readOptionalReportFormat(input);
 
   return {
     baseRef: readOptionalString(input, "baseRef"),
@@ -282,12 +263,11 @@ function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInpu
     changedFiles: readOptionalStringArray(input, "changedFiles"),
     policyPath: readOptionalString(input, "policyPath"),
     regressionPolicyPath: readOptionalString(input, "regressionPolicyPath"),
-    codeReviewPolicyPath: readOptionalString(input, "codeReviewPolicyPath"),
     flowMapPath: readOptionalString(input, "flowMapPath"),
     flowSpecMapPath: readOptionalString(input, "flowSpecMapPath"),
     dryRun: readOptionalBoolean(input, "dryRun"),
     headed: readOptionalBoolean(input, "headed"),
-    browser: readOptionalString(input, "browser"),
+    project: readOptionalString(input, "project"),
     configFile: readOptionalString(input, "configFile"),
     reportPath: readOptionalString(input, "reportPath"),
     reportFormat,
@@ -297,7 +277,13 @@ function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedReviewInpu
 }
 
 function toGenerateHtmlReportInput(input: Record<string, unknown>): GenerateHtmlReportInput {
-  const unifiedReviewOutput = input.unifiedReviewOutput as GenerateHtmlReportInput["unifiedReviewOutput"];
+  const raw = input.unifiedReviewOutput;
+  if (raw !== undefined && raw !== null) {
+    if (typeof raw !== "object" || !("regressionReview" in raw) || !("policyCoverage" in raw)) {
+      throw new Error("unifiedReviewOutput must be a valid UnifiedReviewOutput object");
+    }
+  }
+  const unifiedReviewOutput = raw as GenerateHtmlReportInput["unifiedReviewOutput"];
   return {
     unifiedReviewOutput,
     outputPath: readOptionalString(input, "outputPath"),
@@ -406,7 +392,7 @@ export const registeredTools: RegisteredTool[] = [
         },
         dryRun: { type: "boolean" },
         headed: { type: "boolean" },
-        browser: { type: "string" },
+        project: { type: "string" },
         configFile: { type: "string" },
         reportPath: { type: "string" },
         reportFormat: {
@@ -574,7 +560,7 @@ export const registeredTools: RegisteredTool[] = [
         flowSpecMapPath: { type: "string" },
         dryRun: { type: "boolean" },
         headed: { type: "boolean" },
-        browser: { type: "string" },
+        project: { type: "string" },
         configFile: { type: "string" },
         reportPath: { type: "string" },
         reportFormat: {
@@ -593,7 +579,8 @@ export const registeredTools: RegisteredTool[] = [
   },
   {
     name: "generate_unified_review",
-    description: "Runs regression and code-review tools and returns one deterministic combined report.",
+    description:
+      "Runs regression tests and policy coverage analysis, returning one deterministic combined report.",
     inputSchema: {
       type: "object",
       properties: {
@@ -606,12 +593,11 @@ export const registeredTools: RegisteredTool[] = [
         },
         policyPath: { type: "string" },
         regressionPolicyPath: { type: "string" },
-        codeReviewPolicyPath: { type: "string" },
         flowMapPath: { type: "string" },
         flowSpecMapPath: { type: "string" },
         dryRun: { type: "boolean" },
         headed: { type: "boolean" },
-        browser: { type: "string" },
+        project: { type: "string" },
         configFile: { type: "string" },
         reportPath: { type: "string" },
         reportFormat: {

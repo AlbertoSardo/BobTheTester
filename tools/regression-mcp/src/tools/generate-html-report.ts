@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { findRepositoryRoot, resolveFromRepoRoot } from "../config.js";
 import type {
+  EvaluatePolicyCoverageOutput,
   FlowCoverageScore,
   GenerateHtmlReportInput,
   GenerateHtmlReportOutput,
@@ -49,21 +50,8 @@ function buildFlowScoresJson(scores: FlowCoverageScore[]): string {
   );
 }
 
-function generateHtml(data: UnifiedReviewOutput): string {
-  const reg = data.regressionReview;
-  const cov = data.policyCoverage;
-  const gates = data.qualityGates;
-
-  const flowScoresJson = buildFlowScoresJson(cov.flowScores);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BobTheTester Report</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<style>
+function renderStyles(): string {
+  return `<style>
   :root {
     --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
     --fg: #e2e8f0; --fg2: #94a3b8; --accent: #818cf8;
@@ -108,14 +96,14 @@ function generateHtml(data: UnifiedReviewOutput): string {
   .back-btn { background: var(--bg3); border: none; color: var(--fg); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-bottom: 12px; }
   .back-btn:hover { background: var(--accent); }
   @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-</style>
-</head>
-<body>
+</style>`;
+}
 
-<h1>BobTheTester Report</h1>
-<p class="subtitle">Generated ${escapeHtml(data.generatedAt)} &mdash; Risk: <span class="risk-badge risk-${data.overallRiskLevel}">${data.overallRiskLevel}</span></p>
+function renderSummaryCards(data: UnifiedReviewOutput): string {
+  const reg = data.regressionReview;
+  const cov = data.policyCoverage;
 
-<div class="grid">
+  return `<div class="grid">
   <!-- Summary cards -->
   <div class="card">
     <div class="score-label">Policy Coverage</div>
@@ -129,10 +117,14 @@ function generateHtml(data: UnifiedReviewOutput): string {
     </div>
     <div class="score-label" style="margin-top:4px">${reg.passFailSummary.runnerStatus === "skipped" ? "skipped" : `${reg.passFailSummary.totals.failed} failed, ${reg.passFailSummary.totals.skipped} skipped`}</div>
   </div>
-</div>
+</div>`;
+}
 
-<!-- Quality Gates -->
-<h2>Quality Gates</h2>
+function renderQualityGates(
+  gates: UnifiedReviewOutput["qualityGates"],
+  cov: EvaluatePolicyCoverageOutput,
+): string {
+  return `<h2>Quality Gates</h2>
 <div class="card">
 <table>
   <tr><th>Gate</th><th>Status</th></tr>
@@ -141,7 +133,202 @@ function generateHtml(data: UnifiedReviewOutput): string {
   <tr><td>Regression Risk</td><td class="${gateClass(gates.regressionRiskGatePassed)}">${gateIcon(gates.regressionRiskGatePassed)} ${gates.regressionRiskGatePassed ? "Passed" : "Failed"}</td></tr>
   <tr style="font-weight:700"><td>Combined</td><td class="${gateClass(gates.combinedGatePassed)}">${gateIcon(gates.combinedGatePassed)} ${gates.combinedGatePassed ? "ALL PASSED" : "BLOCKED"}</td></tr>
 </table>
-</div>
+</div>`;
+}
+
+function renderChartScript(flowScoresJson: string): string {
+  return `<script>
+const FLOW_SCORES = ${flowScoresJson};
+
+const tooltip = d3.select("#tooltip");
+function showTooltip(evt, html) {
+  tooltip.html(html).style("opacity", 1)
+    .style("left", (evt.pageX + 12) + "px")
+    .style("top", (evt.pageY - 10) + "px");
+}
+function hideTooltip() { tooltip.style("opacity", 0); }
+
+function scoreColor(s) {
+  if (s >= 80) return "#16a34a";
+  if (s >= 60) return "#ca8a04";
+  if (s >= 40) return "#ea580c";
+  return "#dc2626";
+}
+
+function drawRadar(containerSelector, axes, opts) {
+  var W = opts.width, H = opts.height, R = opts.radius;
+  var labelOffset = opts.labelOffset || 20;
+  var fillColor = opts.fillColor || "#818cf833";
+  var strokeColor = opts.strokeColor || "#818cf8";
+  var showTarget = opts.showTarget !== false;
+  var showLabels = opts.showLabels !== false;
+  var onDotClick = opts.onDotClick || null;
+
+  var n = axes.length;
+  var angleSlice = (2 * Math.PI) / n;
+  var cx = W / 2, cy = H / 2;
+
+  var svg = d3.select(containerSelector).append("svg").attr("width", W).attr("height", H);
+  var g = svg.append("g").attr("transform", "translate(" + cx + "," + cy + ")");
+
+  // Grid rings
+  [0.25, 0.5, 0.75, 1].forEach(function(level) {
+    var r = R * level;
+    var pts = d3.range(n).map(function(i) {
+      var a = angleSlice * i - Math.PI / 2;
+      return [r * Math.cos(a), r * Math.sin(a)];
+    });
+    g.append("polygon").attr("points", pts.map(function(p) { return p.join(","); }).join(" "))
+      .style("fill", "none").style("stroke", "#334155").style("stroke-width", "1");
+    if (opts.showLevelLabels) {
+      g.append("text").attr("x", 4).attr("y", -r).style("fill", "#64748b").style("font-size", "9px")
+        .text(Math.round(level * 100) + "%");
+    }
+  });
+
+  // Axis lines and labels
+  axes.forEach(function(ax, i) {
+    var a = angleSlice * i - Math.PI / 2;
+    g.append("line").attr("x1", 0).attr("y1", 0)
+      .attr("x2", R * Math.cos(a)).attr("y2", R * Math.sin(a))
+      .style("stroke", "#334155").style("stroke-width", "1");
+    if (showLabels) {
+      var lx = (R + labelOffset) * Math.cos(a), ly = (R + labelOffset) * Math.sin(a);
+      g.append("text").attr("class", "radar-axis-label")
+        .attr("x", lx).attr("y", ly).attr("text-anchor", "middle").attr("dy", "0.35em")
+        .text(ax.label);
+    }
+  });
+
+  // Data polygon
+  var dataPts = axes.map(function(ax, i) {
+    var a = angleSlice * i - Math.PI / 2;
+    var r = R * ax.value;
+    return [r * Math.cos(a), r * Math.sin(a)];
+  });
+  g.append("polygon").attr("points", dataPts.map(function(p) { return p.join(","); }).join(" "))
+    .style("fill", fillColor).style("stroke", strokeColor).style("stroke-width", "2");
+  dataPts.forEach(function(p, i) {
+    var dot = g.append("circle").attr("cx", p[0]).attr("cy", p[1]).attr("r", 4)
+      .style("fill", strokeColor);
+    if (onDotClick) {
+      dot.style("cursor", "pointer").on("click", function() { onDotClick(i); });
+    }
+  });
+
+  // Target ring (100% boundary, dashed)
+  if (showTarget) {
+    var targetPts = d3.range(n).map(function(i) {
+      var a = angleSlice * i - Math.PI / 2;
+      return [R * Math.cos(a), R * Math.sin(a)];
+    });
+    g.append("polygon").attr("points", targetPts.map(function(p) { return p.join(","); }).join(" "))
+      .style("fill", "none").style("stroke", "#4ade8066").style("stroke-width", "1").style("stroke-dasharray", "4,4");
+  }
+}
+
+(function drawTreemap() {
+  if (FLOW_SCORES.length === 0) { d3.select("#treemap").append("p").text("No impacted flows.").style("color","#94a3b8"); return; }
+  var W = Math.min(document.getElementById("treemap").clientWidth, 700);
+  var H = Math.max(200, FLOW_SCORES.length * 60);
+  var root = d3.hierarchy({ children: FLOW_SCORES.map(function(f) { return Object.assign({}, f, { value: Math.max(f.totalScenarios, 1) }); }) })
+    .sum(function(d) { return d.value; }).sort(function(a, b) { return b.value - a.value; });
+  d3.treemap().size([W, H]).padding(4).round(true)(root);
+  var svg = d3.select("#treemap").append("svg").attr("width", W).attr("height", H);
+  var cell = svg.selectAll("g").data(root.leaves()).enter().append("g")
+    .attr("transform", function(d) { return "translate(" + d.x0 + "," + d.y0 + ")"; });
+  cell.append("rect").attr("class","treemap-cell")
+    .attr("width", function(d) { return d.x1 - d.x0; }).attr("height", function(d) { return d.y1 - d.y0; })
+    .attr("fill", function(d) { return scoreColor(d.data.overall); }).attr("rx", 4)
+    .on("mouseover", function(evt, d) { showTooltip(evt,
+      '<div class="tt-title">' + d.data.flowId + '</div>' +
+      '<div class="tt-row">Score: ' + d.data.overall + '%</div>' +
+      '<div class="tt-row">Scenarios: ' + d.data.implementedScenarios + '/' + d.data.totalScenarios + ' impl</div>' +
+      '<div class="tt-row">Must-hold: ' + d.data.coveredMustHold + '/' + d.data.totalMustHold + '</div>' +
+      '<div class="tt-row">Branch: ' + d.data.branch + '%</div>'); })
+    .on("mouseout", hideTooltip)
+    .on("click", function(evt, d) { showFlowDetail(d.data); });
+  cell.append("text").attr("class","treemap-label").attr("x", 8).attr("y", 20)
+    .text(function(d) { var w = d.x1-d.x0; return w > 60 ? d.data.flowId : d.data.flowId.substring(0,3)+"…"; });
+  cell.append("text").attr("class","treemap-score")
+    .attr("x", function(d) { return (d.x1-d.x0)/2; }).attr("y", function(d) { return (d.y1-d.y0)/2 + 8; })
+    .attr("text-anchor","middle")
+    .text(function(d) { return d.data.overall + "%"; });
+})();
+
+(function drawGlobalRadar() {
+  if (FLOW_SCORES.length === 0) { d3.select("#radar-global").append("p").text("No data.").style("color","#94a3b8"); return; }
+  var axes = FLOW_SCORES.map(function(f) { return { label: f.flowId, value: f.overall/100 }; });
+  drawRadar("#radar-global", axes, {
+    width: 300, height: 300, radius: 110, labelOffset: 20,
+    showTarget: true, showLabels: true, showLevelLabels: false,
+    onDotClick: function(i) { showFlowDetail(FLOW_SCORES[i]); }
+  });
+})();
+
+function showFlowDetail(flow) {
+  document.getElementById("flow-detail").classList.add("active");
+  document.getElementById("flow-detail-title").textContent = flow.flowId + " — " + flow.overall + "%";
+
+  var axes = [
+    { label: "Must-hold", value: flow.mustHold / 100 },
+    { label: "Regression", value: flow.regression / 100 },
+    { label: "Branches", value: flow.branch / 100 },
+  ];
+
+  d3.select("#radar-flow").selectAll("*").remove();
+  drawRadar("#radar-flow", axes, {
+    width: 280, height: 280, radius: 90, labelOffset: 24,
+    showTarget: false, showLabels: true, showLevelLabels: true,
+    onDotClick: null
+  });
+
+  // Detail info
+  var info = "<table style='width:100%'>";
+  info += "<tr><th>Metric</th><th>Value</th></tr>";
+  info += "<tr><td>Must-hold</td><td>" + flow.coveredMustHold + "/" + flow.totalMustHold + " (" + flow.mustHold + "%)</td></tr>";
+  info += "<tr><td>Scenarios</td><td>" + flow.implementedScenarios + "/" + flow.totalScenarios + " implemented, " + flow.scaffoldScenarios + " scaffold</td></tr>";
+  info += "<tr><td>Branch coverage</td><td>" + flow.branch + "%</td></tr>";
+  if (flow.uncoveredMustHold.length > 0) {
+    info += "<tr><td colspan='2' style='color:#f87171'>Uncovered invariants: " + flow.uncoveredMustHold.join("; ") + "</td></tr>";
+  }
+  if (flow.uncoveredScenarios.length > 0) {
+    info += "<tr><td colspan='2' style='color:#fb923c'>Missing scenarios: " + flow.uncoveredScenarios.join("; ") + "</td></tr>";
+  }
+  info += "</table>";
+  document.getElementById("flow-detail-info").innerHTML = info;
+}
+
+function hideFlowDetail() {
+  document.getElementById("flow-detail").classList.remove("active");
+}
+</script>`;
+}
+
+function generateHtml(data: UnifiedReviewOutput): string {
+  const reg = data.regressionReview;
+  const cov = data.policyCoverage;
+  const gates = data.qualityGates;
+
+  const flowScoresJson = buildFlowScoresJson(cov.flowScores);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BobTheTester Report</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+${renderStyles()}
+</head>
+<body>
+
+<h1>BobTheTester Report</h1>
+<p class="subtitle">Generated ${escapeHtml(data.generatedAt)} &mdash; Risk: <span class="risk-badge risk-${data.overallRiskLevel}">${data.overallRiskLevel}</span></p>
+
+${renderSummaryCards(data)}
+
+${renderQualityGates(gates, cov)}
 
 <!-- Treemap -->
 <h2>Coverage by Flow</h2>
@@ -199,183 +386,7 @@ ${
 
 <div class="tooltip" id="tooltip"></div>
 
-<script>
-const FLOW_SCORES = ${flowScoresJson};
-
-// ── Tooltip ──
-const tooltip = d3.select("#tooltip");
-function showTooltip(evt, html) {
-  tooltip.html(html).style("opacity", 1)
-    .style("left", (evt.pageX + 12) + "px")
-    .style("top", (evt.pageY - 10) + "px");
-}
-function hideTooltip() { tooltip.style("opacity", 0); }
-
-// ── Color scale ──
-function scoreColor(s) {
-  if (s >= 80) return "#16a34a";
-  if (s >= 60) return "#ca8a04";
-  if (s >= 40) return "#ea580c";
-  return "#dc2626";
-}
-
-// ── Treemap ──
-(function drawTreemap() {
-  if (FLOW_SCORES.length === 0) { d3.select("#treemap").append("p").text("No impacted flows.").style("color","#94a3b8"); return; }
-  const W = Math.min(document.getElementById("treemap").clientWidth, 700);
-  const H = Math.max(200, FLOW_SCORES.length * 60);
-  const root = d3.hierarchy({ children: FLOW_SCORES.map(f => ({ ...f, value: Math.max(f.totalScenarios, 1) })) })
-    .sum(d => d.value).sort((a, b) => b.value - a.value);
-  d3.treemap().size([W, H]).padding(4).round(true)(root);
-  const svg = d3.select("#treemap").append("svg").attr("width", W).attr("height", H);
-  const cell = svg.selectAll("g").data(root.leaves()).enter().append("g")
-    .attr("transform", d => "translate(" + d.x0 + "," + d.y0 + ")");
-  cell.append("rect").attr("class","treemap-cell")
-    .attr("width", d => d.x1 - d.x0).attr("height", d => d.y1 - d.y0)
-    .attr("fill", d => scoreColor(d.data.overall)).attr("rx", 4)
-    .on("mouseover", (evt, d) => showTooltip(evt,
-      '<div class="tt-title">' + d.data.flowId + '</div>' +
-      '<div class="tt-row">Score: ' + d.data.overall + '%</div>' +
-      '<div class="tt-row">Scenarios: ' + d.data.implementedScenarios + '/' + d.data.totalScenarios + ' impl</div>' +
-      '<div class="tt-row">Must-hold: ' + d.data.coveredMustHold + '/' + d.data.totalMustHold + '</div>' +
-      '<div class="tt-row">Branch: ' + d.data.branch + '%</div>'))
-    .on("mouseout", hideTooltip)
-    .on("click", (evt, d) => showFlowDetail(d.data));
-  cell.append("text").attr("class","treemap-label").attr("x", 8).attr("y", 20)
-    .text(d => { const w = d.x1-d.x0; return w > 60 ? d.data.flowId : d.data.flowId.substring(0,3)+"…"; });
-  cell.append("text").attr("class","treemap-score")
-    .attr("x", d => (d.x1-d.x0)/2).attr("y", d => (d.y1-d.y0)/2 + 8)
-    .attr("text-anchor","middle")
-    .text(d => d.data.overall + "%");
-})();
-
-// ── Radar global ──
-(function drawGlobalRadar() {
-  if (FLOW_SCORES.length === 0) { d3.select("#radar-global").append("p").text("No data.").style("color","#94a3b8"); return; }
-  const W = 300, H = 300, cx = W/2, cy = H/2, R = 110;
-  const axes = FLOW_SCORES.map(f => ({ label: f.flowId, value: f.overall/100 }));
-  const n = axes.length;
-  const angleSlice = (2 * Math.PI) / n;
-  const svg = d3.select("#radar-global").append("svg").attr("width", W).attr("height", H);
-  const g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
-
-  // Grid
-  [0.25, 0.5, 0.75, 1].forEach(level => {
-    const r = R * level;
-    const pts = d3.range(n).map(i => {
-      const a = angleSlice * i - Math.PI/2;
-      return [r*Math.cos(a), r*Math.sin(a)];
-    });
-    g.append("polygon").attr("points", pts.map(p=>p.join(",")).join(" "))
-      .style("fill","none").style("stroke","#334155").style("stroke-width","1");
-  });
-
-  // Axes
-  axes.forEach((ax, i) => {
-    const a = angleSlice * i - Math.PI/2;
-    g.append("line").attr("x1",0).attr("y1",0)
-      .attr("x2",R*Math.cos(a)).attr("y2",R*Math.sin(a))
-      .style("stroke","#334155").style("stroke-width","1");
-    const lx = (R+20)*Math.cos(a), ly = (R+20)*Math.sin(a);
-    g.append("text").attr("class","radar-axis-label")
-      .attr("x",lx).attr("y",ly).attr("text-anchor","middle").attr("dy","0.35em")
-      .text(ax.label);
-  });
-
-  // Data area
-  const dataPts = axes.map((ax, i) => {
-    const a = angleSlice * i - Math.PI/2;
-    const r = R * ax.value;
-    return [r*Math.cos(a), r*Math.sin(a)];
-  });
-  g.append("polygon").attr("points", dataPts.map(p=>p.join(",")).join(" "))
-    .style("fill","#818cf833").style("stroke","#818cf8").style("stroke-width","2");
-  dataPts.forEach((p, i) => {
-    g.append("circle").attr("cx",p[0]).attr("cy",p[1]).attr("r",4)
-      .style("fill","#818cf8").style("cursor","pointer")
-      .on("click", () => showFlowDetail(FLOW_SCORES[i]));
-  });
-
-  // Target ring
-  const targetPts = d3.range(n).map(i => {
-    const a = angleSlice * i - Math.PI/2;
-    return [R*Math.cos(a), R*Math.sin(a)];
-  });
-  g.append("polygon").attr("points", targetPts.map(p=>p.join(",")).join(" "))
-    .style("fill","none").style("stroke","#4ade8066").style("stroke-width","1").style("stroke-dasharray","4,4");
-})();
-
-// ── Flow detail radar ──
-function showFlowDetail(flow) {
-  document.getElementById("flow-detail").classList.add("active");
-  document.getElementById("flow-detail-title").textContent = flow.flowId + " — " + flow.overall + "%";
-
-  const axes = [
-    { label: "Must-hold", value: flow.mustHold / 100 },
-    { label: "Regression", value: flow.regression / 100 },
-    { label: "Branches", value: flow.branch / 100 },
-  ];
-  const n = 3, W = 280, H = 280, cx = W/2, cy = W/2, R = 90;
-  const angleSlice = (2 * Math.PI) / n;
-
-  d3.select("#radar-flow").selectAll("*").remove();
-  const svg = d3.select("#radar-flow").append("svg").attr("width", W).attr("height", H);
-  const g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
-
-  [0.25, 0.5, 0.75, 1].forEach(level => {
-    const r = R * level;
-    const pts = d3.range(n).map(i => {
-      const a = angleSlice * i - Math.PI/2;
-      return [r*Math.cos(a), r*Math.sin(a)];
-    });
-    g.append("polygon").attr("points", pts.map(p=>p.join(",")).join(" "))
-      .style("fill","none").style("stroke","#334155");
-    g.append("text").attr("x",4).attr("y",-r).style("fill","#64748b").style("font-size","9px")
-      .text(Math.round(level*100)+"%");
-  });
-
-  axes.forEach((ax, i) => {
-    const a = angleSlice * i - Math.PI/2;
-    g.append("line").attr("x1",0).attr("y1",0)
-      .attr("x2",R*Math.cos(a)).attr("y2",R*Math.sin(a))
-      .style("stroke","#334155");
-    const lx = (R+24)*Math.cos(a), ly = (R+24)*Math.sin(a);
-    g.append("text").attr("class","radar-axis-label")
-      .attr("x",lx).attr("y",ly).attr("text-anchor","middle").attr("dy","0.35em")
-      .text(ax.label);
-  });
-
-  const dataPts = axes.map((ax, i) => {
-    const a = angleSlice * i - Math.PI/2;
-    const r = R * ax.value;
-    return [r*Math.cos(a), r*Math.sin(a)];
-  });
-  g.append("polygon").attr("points", dataPts.map(p=>p.join(",")).join(" "))
-    .style("fill","#818cf844").style("stroke","#818cf8").style("stroke-width","2");
-  dataPts.forEach(p => {
-    g.append("circle").attr("cx",p[0]).attr("cy",p[1]).attr("r",4).style("fill","#818cf8");
-  });
-
-  // Detail info
-  let info = "<table style='width:100%'>";
-  info += "<tr><th>Metric</th><th>Value</th></tr>";
-  info += "<tr><td>Must-hold</td><td>" + flow.coveredMustHold + "/" + flow.totalMustHold + " (" + flow.mustHold + "%)</td></tr>";
-  info += "<tr><td>Scenarios</td><td>" + flow.implementedScenarios + "/" + flow.totalScenarios + " implemented, " + flow.scaffoldScenarios + " scaffold</td></tr>";
-  info += "<tr><td>Branch coverage</td><td>" + flow.branch + "%</td></tr>";
-  if (flow.uncoveredMustHold.length > 0) {
-    info += "<tr><td colspan='2' style='color:#f87171'>Uncovered invariants: " + flow.uncoveredMustHold.join("; ") + "</td></tr>";
-  }
-  if (flow.uncoveredScenarios.length > 0) {
-    info += "<tr><td colspan='2' style='color:#fb923c'>Missing scenarios: " + flow.uncoveredScenarios.join("; ") + "</td></tr>";
-  }
-  info += "</table>";
-  document.getElementById("flow-detail-info").innerHTML = info;
-}
-
-function hideFlowDetail() {
-  document.getElementById("flow-detail").classList.remove("active");
-}
-</script>
+${renderChartScript(flowScoresJson)}
 </body>
 </html>`;
 }

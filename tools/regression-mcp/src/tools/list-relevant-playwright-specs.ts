@@ -17,7 +17,7 @@ export async function listRelevantPlaywrightSpecs(
   const warnings: string[] = [];
 
   const impactedFlowIds = toSortedUnique(input.impactedFlowIds);
-  const resolvedSpecs: string[] = [];
+  const specPatterns: string[] = [];
   const flowToSpecs: Record<string, string[]> = {};
   const flowsWithoutSpecs: string[] = [];
 
@@ -48,13 +48,13 @@ export async function listRelevantPlaywrightSpecs(
       continue;
     }
 
-    resolvedSpecs.push(...existingSpecs);
+    specPatterns.push(...existingSpecs);
   }
 
   return {
     tool: "list_relevant_playwright_specs",
     flowSpecMapPath: resolveFromRepoRoot(repoRoot, flowSpecMapPath),
-    resolvedSpecs: toSortedUnique(resolvedSpecs),
+    specPatterns: toSortedUnique(specPatterns),
     flowToSpecs,
     flowsWithoutSpecs,
     warnings,

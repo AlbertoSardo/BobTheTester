@@ -1,7 +1,7 @@
 import { generateRegressionReview } from "./review.js";
 import { evaluatePolicyCoverage } from "./tools/evaluate-policy-coverage.js";
 import type { RegressionReviewOutput, RiskLevel, UnifiedReviewInput, UnifiedReviewOutput } from "./types.js";
-import { uniqueSorted } from "./utils/helpers.js";
+import { toSortedUnique } from "./utils/fs.js";
 
 function riskPriority(level: RiskLevel): number {
   if (level === "critical") {
@@ -74,7 +74,7 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
     actions.push("No regression blockers detected. Keep normal human validation before merge.");
   }
 
-  return uniqueSorted(actions);
+  return toSortedUnique(actions);
 }
 
 export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Promise<UnifiedReviewOutput> {
@@ -98,7 +98,7 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
 
   const overallRiskLevel = maxRiskLevel([regressionReview.riskLevel, policyCoverage.riskLevel]);
 
-  const overallRecommendedActions = uniqueSorted([
+  const overallRecommendedActions = toSortedUnique([
     ...deriveRegressionActions(regressionReview),
     ...policyCoverage.recommendedActions,
   ]);
@@ -132,6 +132,6 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
     overallRiskLevel,
     overallRecommendedActions,
     qualityGates,
-    warnings: uniqueSorted([...regressionReview.warnings, ...policyCoverage.warnings]),
+    warnings: toSortedUnique([...regressionReview.warnings, ...policyCoverage.warnings]),
   };
 }

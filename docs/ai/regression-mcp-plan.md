@@ -49,9 +49,9 @@
   - `npm run typecheck`
   - `npm run build`
   - `npm run tool -- suggest_policy_clarifications '{"flows":["user-onboarding"]}'`
-  - `npm run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":false,"browser":"chromium"}'`
+  - `npm run tool -- run_playwright '{"specs":["playwright/e2e/flows/user-onboarding.spec.ts"],"dryRun":false,"project":"chromium"}'`
   - `npm run tool -- read_playwright_report '{}'`
-  - `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"browser":"chromium"}'`
+  - `npm run unified-review -- '{"changedFiles":["src/features/user-onboarding/step.ts"],"dryRun":false,"project":"chromium"}'`
 
 ## Risks and follow-ups
 - Flow mappings may drift from product behavior as features evolve.

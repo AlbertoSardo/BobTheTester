@@ -154,15 +154,41 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
   const specs = Array.from(new Set(input.specs)).sort((a, b) => a.localeCompare(b));
   const startedAt = new Date();
 
-  if (specs.length > 0) {
-    args.push(...specs);
-  } else {
+  if (specs.length === 0) {
     warnings.push(
       "No Playwright specs were selected. Skipped execution to avoid unintended full-suite Playwright runs.",
     );
   }
 
-  const project = input.browser ?? toolingConfig.playwright.defaultProject;
+  function makeResult(
+    overrides: Pick<RunPlaywrightOutput, "exitCode" | "status" | "stdout" | "stderr">,
+  ): RunPlaywrightOutput {
+    const finishedAt = new Date();
+    return {
+      tool: "run_playwright",
+      dryRun,
+      command: [command, ...args],
+      cwd: repoRoot,
+      specs,
+      reportPath,
+      reportFormat,
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      warnings,
+      ...overrides,
+    };
+  }
+
+  if (specs.length === 0 || dryRun) {
+    return makeResult({ exitCode: null, status: "skipped", stdout: "", stderr: "" });
+  }
+
+  if (specs.length > 0) {
+    args.push(...specs);
+  }
+
+  const project = input.project ?? toolingConfig.playwright.defaultProject;
   if (project) {
     args.push("--project", project);
   }
@@ -189,48 +215,6 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
     args.push(...input.extraArgs);
   }
 
-  if (specs.length === 0) {
-    const finishedAt = new Date();
-    return {
-      tool: "run_playwright",
-      dryRun,
-      command: [command, ...args],
-      cwd: repoRoot,
-      specs,
-      reportPath,
-      reportFormat,
-      startedAt: startedAt.toISOString(),
-      finishedAt: finishedAt.toISOString(),
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      exitCode: null,
-      status: "skipped",
-      stdout: "",
-      stderr: "",
-      warnings,
-    };
-  }
-
-  if (dryRun) {
-    const finishedAt = new Date();
-    return {
-      tool: "run_playwright",
-      dryRun,
-      command: [command, ...args],
-      cwd: repoRoot,
-      specs,
-      reportPath,
-      reportFormat,
-      startedAt: startedAt.toISOString(),
-      finishedAt: finishedAt.toISOString(),
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      exitCode: null,
-      status: "skipped",
-      stdout: "",
-      stderr: "",
-      warnings,
-    };
-  }
-
   try {
     await mkdir(path.dirname(reportPath), { recursive: true });
     await rm(reportPath, { force: true });
@@ -248,7 +232,6 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
     }
 
     const result = await runCommand(command, args, repoRoot, commandEnv);
-    const finishedAt = new Date();
 
     if (reportFormat === "json") {
       if (!(await fileExists(reportPath))) {
@@ -259,41 +242,18 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
       }
     }
 
-    return {
-      tool: "run_playwright",
-      dryRun,
-      command: [command, ...args],
-      cwd: repoRoot,
-      specs,
-      reportPath,
-      reportFormat,
-      startedAt: startedAt.toISOString(),
-      finishedAt: finishedAt.toISOString(),
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
+    return makeResult({
       exitCode: result.exitCode,
       status: result.exitCode === 0 ? "passed" : "failed",
       stdout: result.stdout,
       stderr: result.stderr,
-      warnings,
-    };
+    });
   } catch (error) {
-    const finishedAt = new Date();
-    return {
-      tool: "run_playwright",
-      dryRun,
-      command: [command, ...args],
-      cwd: repoRoot,
-      specs,
-      reportPath,
-      reportFormat,
-      startedAt: startedAt.toISOString(),
-      finishedAt: finishedAt.toISOString(),
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
+    return makeResult({
       exitCode: 1,
       status: "failed",
       stdout: "",
       stderr: error instanceof Error ? error.message : String(error),
-      warnings,
-    };
+    });
   }
 }

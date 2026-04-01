@@ -15,9 +15,9 @@ import type {
   RegressionReviewOutput,
   RiskLevel,
 } from "./types.js";
-import { uniqueSorted } from "./utils/helpers.js";
+import { toSortedUnique } from "./utils/fs.js";
 
-function deriveRiskLevel(
+function deriveRegressionRiskLevel(
   failedTestCount: number,
   hasCoverageGaps: boolean,
   suiteIsComplete: boolean,
@@ -59,7 +59,9 @@ export async function generateRegressionReview(
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
 
   const includeUntracked = input.includeUntracked ?? true;
-  const changedFilesInput = Array.isArray(input.changedFiles) ? uniqueSorted(input.changedFiles) : undefined;
+  const changedFilesInput = Array.isArray(input.changedFiles)
+    ? toSortedUnique(input.changedFiles)
+    : undefined;
 
   let changedFilesOutput: GetChangedFilesOutput | undefined;
 
@@ -74,7 +76,7 @@ export async function generateRegressionReview(
 
   const changedFiles =
     changedFilesInput ??
-    uniqueSorted([
+    toSortedUnique([
       ...(changedFilesOutput?.changedFiles ?? []),
       ...(changedFilesOutput?.untrackedFiles ?? []),
     ]);
@@ -121,10 +123,10 @@ export async function generateRegressionReview(
   const dryRun = input.dryRun ?? false;
 
   const run = await runPlaywright({
-    specs: selected.resolvedSpecs,
+    specs: selected.specPatterns,
     dryRun,
     headed: input.headed,
-    browser: input.browser,
+    project: input.project,
     configFile: input.configFile,
     reportPath: input.reportPath,
     reportFormat: input.reportFormat,
@@ -211,7 +213,7 @@ export async function generateRegressionReview(
     }
   }
 
-  const warnings = uniqueSorted([
+  const warnings = toSortedUnique([
     ...(changedFilesOutput?.warnings ?? []),
     ...impacted.warnings,
     ...suiteGeneration.warnings,
@@ -224,8 +226,8 @@ export async function generateRegressionReview(
     ...suiteValidation.warnings,
   ]);
 
-  const mergedSuggestions = uniqueSorted([...suggestions.suggestions, ...suiteGapSuggestions]);
-  const mergedFlowsWithoutSpecs = uniqueSorted([
+  const mergedSuggestions = toSortedUnique([...suggestions.suggestions, ...suiteGapSuggestions]);
+  const mergedFlowsWithoutSpecs = toSortedUnique([
     ...suggestions.flowsWithoutSpecs,
     ...suiteValidation.flowResults
       .filter((result) => result.mappedSpecs.length === 0 || result.missingSpecFiles.length > 0)
@@ -234,12 +236,12 @@ export async function generateRegressionReview(
 
   const hasBlockingClarifications = policyClarifications.questions.some((question) => question.blocking);
   const hasCoverageGaps = mergedSuggestions.length > 0 || suiteValidation.scaffoldFlows.length > 0;
-  const riskLevel = deriveRiskLevel(
+  const riskLevel = deriveRegressionRiskLevel(
     report.totals.failed,
     hasCoverageGaps,
     suiteValidation.isComplete,
     impacted.impactedFlowIds,
-    selected.resolvedSpecs,
+    selected.specPatterns,
     run.status,
     hasBlockingClarifications,
   );
@@ -267,7 +269,7 @@ export async function generateRegressionReview(
       unchangedSpecFiles: suiteGeneration.unchangedSpecFiles,
       mappingUpdated: suiteGeneration.mappingUpdated,
     },
-    selectedSpecs: selected.resolvedSpecs,
+    selectedSpecs: selected.specPatterns,
     passFailSummary: {
       runnerStatus: run.status,
       exitCode: run.exitCode,

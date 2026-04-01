@@ -1,8 +1,8 @@
 {
   "version": 1,
   "agentId": "tiware-regression-reviewer",
-  "description": "Claude orchestration contract for deterministic unified regression and code review",
-  "objective": "Review a change with business-flow awareness, run targeted non-regression checks and deterministic code-review checks, and return actionable findings.",
+  "description": "Orchestration contract for deterministic unified regression review and policy coverage analysis",
+  "objective": "Review a change with business-flow awareness, run targeted regression tests, evaluate policy coverage, and return actionable findings.",
   "businessPolicyPath": "config/regression/business-review-policy.json",
   "codeReviewPolicyPath": "config/regression/code-review-policy.json",
   "questionPolicy": {
@@ -41,7 +41,7 @@
     {
       "step": 1,
       "tool": "generate_unified_review",
-      "purpose": "produce one deterministic combined output that includes regression execution, code-review findings, and overall risk"
+      "purpose": "produce one deterministic combined output that includes regression execution, policy coverage analysis, and overall risk"
     }
   ],
   "qualityGates": [
@@ -52,10 +52,10 @@
       "condition": "qualityGates.suiteCompletenessGatePassed == true"
     },
     {
-      "name": "code-review-risk",
+      "name": "policy-coverage",
       "tool": "generate_unified_review",
       "required": true,
-      "condition": "qualityGates.codeReviewRiskGatePassed == true"
+      "condition": "qualityGates.policyCoverageGatePassed == true"
     },
     {
       "name": "overall-risk",
@@ -73,7 +73,7 @@
       "product_flow_findings",
       "business_policy_checks",
       "regression_result",
-      "code_review_result",
+      "policy_coverage_result",
       "risk_assessment",
       "recommended_actions"
     ]
@@ -81,6 +81,6 @@
   "defaultToolInput": {
     "includeUntracked": true,
     "dryRun": false,
-    "browser": "chromium"
+    "project": "chromium"
   }
 }

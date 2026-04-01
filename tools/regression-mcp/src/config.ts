@@ -30,7 +30,10 @@ export async function findRepositoryRoot(startDir = process.cwd()): Promise<stri
 
     const parent = path.dirname(current);
     if (parent === current) {
-      return path.resolve(startDir);
+      throw new Error(
+        `No git repository found starting from '${startDir}'. ` +
+          "Ensure you are running inside a git repository or pass an explicit repoRoot.",
+      );
     }
 
     current = parent;
@@ -47,7 +50,21 @@ export function resolveFromRepoRoot(repoRoot: string, filePath: string): string 
 
 async function readJsonFile<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, "utf-8");
-  return JSON.parse(raw) as T;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse JSON file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(
+      `Expected JSON object in '${filePath}', got ${Array.isArray(parsed) ? "array" : typeof parsed}`,
+    );
+  }
+  return parsed as T;
 }
 
 export async function loadFlowMapConfig(
@@ -55,8 +72,15 @@ export async function loadFlowMapConfig(
   flowMapPath = DEFAULT_FLOW_MAP_PATH,
 ): Promise<{ path: string; config: FlowMapConfig }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, flowMapPath);
-  const config = await readJsonFile<FlowMapConfig>(resolvedPath);
-  return { path: resolvedPath, config };
+  try {
+    const config = await readJsonFile<FlowMapConfig>(resolvedPath);
+    return { path: resolvedPath, config };
+  } catch (error) {
+    throw new Error(
+      `Failed to load flow-map config from '${resolvedPath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 export async function loadFlowSpecMapConfig(
@@ -64,8 +88,15 @@ export async function loadFlowSpecMapConfig(
   flowSpecMapPath = DEFAULT_FLOW_SPEC_MAP_PATH,
 ): Promise<{ path: string; config: FlowSpecMapConfig }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, flowSpecMapPath);
-  const config = await readJsonFile<FlowSpecMapConfig>(resolvedPath);
-  return { path: resolvedPath, config };
+  try {
+    const config = await readJsonFile<FlowSpecMapConfig>(resolvedPath);
+    return { path: resolvedPath, config };
+  } catch (error) {
+    throw new Error(
+      `Failed to load flow-spec-map config from '${resolvedPath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 export async function loadToolingConfig(
@@ -73,8 +104,15 @@ export async function loadToolingConfig(
   toolingConfigPath = DEFAULT_TOOLING_CONFIG_PATH,
 ): Promise<{ path: string; config: ToolingConfig }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, toolingConfigPath);
-  const config = await readJsonFile<ToolingConfig>(resolvedPath);
-  return { path: resolvedPath, config };
+  try {
+    const config = await readJsonFile<ToolingConfig>(resolvedPath);
+    return { path: resolvedPath, config };
+  } catch (error) {
+    throw new Error(
+      `Failed to load tooling config from '${resolvedPath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 export async function loadBusinessReviewPolicy(
@@ -82,8 +120,15 @@ export async function loadBusinessReviewPolicy(
   businessPolicyPath = DEFAULT_BUSINESS_POLICY_PATH,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, businessPolicyPath);
-  const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
-  return { path: resolvedPath, policy };
+  try {
+    const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
+    return { path: resolvedPath, policy };
+  } catch (error) {
+    throw new Error(
+      `Failed to load business review policy from '${resolvedPath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 export async function loadCodeReviewPolicy(
@@ -91,6 +136,13 @@ export async function loadCodeReviewPolicy(
   codeReviewPolicyPath = DEFAULT_CODE_REVIEW_POLICY_PATH,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
   const resolvedPath = resolveFromRepoRoot(repoRoot, codeReviewPolicyPath);
-  const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
-  return { path: resolvedPath, policy };
+  try {
+    const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
+    return { path: resolvedPath, policy };
+  } catch (error) {
+    throw new Error(
+      `Failed to load code review policy from '${resolvedPath}': ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }

@@ -312,11 +312,12 @@ export async function suggestPolicyClarifications(
 
     const primaryActor = asNonEmptyString(executionHints?.primaryActor);
     if (isUnclearString(primaryActor)) {
+      const isAuthRelated = flowId.includes("permission") || flowId.includes("auth");
       addQuestion(
         questions,
         `flow.${flowId}.primary-actor`,
-        "medium",
-        false,
+        isAuthRelated ? "high" : "medium",
+        isAuthRelated,
         `Which actor/role should execute flow '${flowId}' in regression tests?`,
         "Role ambiguity can hide permission defects and produce flaky assertions.",
         flowId,
