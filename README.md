@@ -7,7 +7,7 @@ Give it your business policy, it analyzes your PR, generates missing Playwright 
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["Your PR"] --> B["BobTheTester"]
     B --> C["Detect impacted\nbusiness flows"]
     C --> D["Generate + run\nPlaywright tests"]
