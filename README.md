@@ -20,16 +20,16 @@ flowchart TD
 
 ```bash
 git clone <REPO-URL> && cd BobTheTester
-./scripts/setup-bobthetester.sh
+./scripts/setup-bobthetester.sh --write-desktop-config --install-command /path/to/your/project
 ```
 
-Then in Claude or OpenCode:
+Then open your project in Claude or OpenCode and run:
 
 ```
 /bobthetester config/regression/business-review-policy.json
 ```
 
-That's it. BobTheTester reads the policy, analyzes your changes, generates tests, runs them, and outputs a report.
+The setup script installs the MCP server and copies the `/bobthetester` command into your project. You need both for it to work.
 
 ## Input formats
 

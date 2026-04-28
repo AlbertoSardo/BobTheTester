@@ -9,6 +9,7 @@ DIST_ENTRY="${MCP_PACKAGE_DIR}/dist/index.js"
 LOCAL_CONFIG_PATH="${HOME}/.config/tiware/bobthetester/claude-mcp-server.local.json"
 WRITE_DESKTOP_CONFIG="false"
 WRITE_OPENCODE_CONFIG="false"
+INSTALL_COMMAND_DIR=""
 DESKTOP_CONFIG_PATH="${HOME}/Library/Application Support/Claude/claude_desktop_config.json"
 OPENCODE_CONFIG_PATH="${REPO_ROOT}/opencode.jsonc"
 SKIP_INSTALL="false"
@@ -23,6 +24,7 @@ Options:
   --skip-build            Skip npm build in tools/regression-mcp
   --write-desktop-config  Write/merge MCP server into Claude Desktop config
   --write-opencode-config Write/merge MCP server into OpenCode config (opencode.jsonc)
+  --install-command <dir> Copy /bobthetester slash command into <dir> for Claude and OpenCode
   --desktop-config-path <path>
                           Override Claude Desktop config path
   --opencode-config-path <path>
@@ -35,6 +37,7 @@ What this script does:
   3) Generates a local MCP config snippet with absolute path
   4) Optionally merges the MCP server into Claude Desktop config
   5) Optionally merges the MCP server into OpenCode config
+  6) Optionally installs the /bobthetester command into a target project
 EOF
 }
 
@@ -70,6 +73,14 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       OPENCODE_CONFIG_PATH="$2"
+      shift 2
+      ;;
+    --install-command)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --install-command requires a target directory" >&2
+        exit 1
+      fi
+      INSTALL_COMMAND_DIR="$2"
       shift 2
       ;;
     --help|-h)
@@ -223,6 +234,27 @@ fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 NODE
 fi
 
+if [[ -n "${INSTALL_COMMAND_DIR}" ]]; then
+  INSTALL_TARGET="$(cd "${INSTALL_COMMAND_DIR}" 2>/dev/null && pwd)" || {
+    echo "Error: target directory not found: ${INSTALL_COMMAND_DIR}" >&2
+    exit 1
+  }
+  COMMAND_SRC="${REPO_ROOT}/.claude/commands/bobthetester.md"
+
+  echo "[bobthetester] Installing /bobthetester command into ${INSTALL_TARGET}"
+
+  # Claude command
+  mkdir -p "${INSTALL_TARGET}/.claude/commands"
+  cp "${COMMAND_SRC}" "${INSTALL_TARGET}/.claude/commands/bobthetester.md"
+
+  # OpenCode command
+  mkdir -p "${INSTALL_TARGET}/.opencode/commands"
+  cp "${COMMAND_SRC}" "${INSTALL_TARGET}/.opencode/commands/bobthetester.md"
+
+  echo "  - ${INSTALL_TARGET}/.claude/commands/bobthetester.md"
+  echo "  - ${INSTALL_TARGET}/.opencode/commands/bobthetester.md"
+fi
+
 echo ""
 echo "[bobthetester] Setup completed."
 echo "- Local MCP config snippet: ${LOCAL_CONFIG_PATH}"
@@ -232,7 +264,13 @@ fi
 if [[ "${WRITE_OPENCODE_CONFIG}" == "true" ]]; then
   echo "- OpenCode config updated: ${OPENCODE_CONFIG_PATH}"
 fi
+if [[ -n "${INSTALL_COMMAND_DIR}" ]]; then
+  echo "- /bobthetester command installed in: ${INSTALL_TARGET}"
+fi
 if [[ "${WRITE_DESKTOP_CONFIG}" != "true" && "${WRITE_OPENCODE_CONFIG}" != "true" ]]; then
   echo "- Next: rerun with --write-desktop-config and/or --write-opencode-config"
 fi
-echo "- Then open repo in your client and run: /bobthetester"
+if [[ -z "${INSTALL_COMMAND_DIR}" ]]; then
+  echo "- To use /bobthetester in another project: rerun with --install-command /path/to/project"
+fi
+echo "- Open the target project in your client and run: /bobthetester"
