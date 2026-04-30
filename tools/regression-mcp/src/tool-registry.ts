@@ -166,6 +166,7 @@ function toRunPlaywrightInput(input: Record<string, unknown>): RunPlaywrightInpu
     reportFormat,
     extraArgs: readOptionalStringArray(input, "extraArgs"),
     repoRoot: readOptionalString(input, "repoRoot"),
+    workDir: readOptionalString(input, "workDir"),
   };
 }
 
@@ -250,6 +251,7 @@ export function toRegressionReviewInput(input: Record<string, unknown>): Regress
     reportFormat,
     extraArgs: readOptionalStringArray(input, "extraArgs"),
     repoRoot: readOptionalString(input, "repoRoot"),
+    workDir: readOptionalString(input, "workDir"),
   };
 }
 
@@ -273,6 +275,7 @@ export function toUnifiedReviewInput(input: Record<string, unknown>): UnifiedRev
     reportFormat,
     extraArgs: readOptionalStringArray(input, "extraArgs"),
     repoRoot: readOptionalString(input, "repoRoot"),
+    workDir: readOptionalString(input, "workDir"),
   };
 }
 
@@ -404,6 +407,11 @@ export const registeredTools: RegisteredTool[] = [
           items: { type: "string" },
         },
         repoRoot: { type: "string" },
+        workDir: {
+          type: "string",
+          description:
+            "Working directory for the Playwright process. Use in monorepos where playwright.config.ts lives in a subdirectory (e.g. 'frontend'). Accepts absolute path or relative to repoRoot.",
+        },
       },
       required: ["specs"],
       additionalProperties: false,
@@ -572,6 +580,11 @@ export const registeredTools: RegisteredTool[] = [
           items: { type: "string" },
         },
         repoRoot: { type: "string" },
+        workDir: {
+          type: "string",
+          description:
+            "Working directory for the Playwright process. Use in monorepos where playwright.config.ts lives in a subdirectory (e.g. 'frontend').",
+        },
       },
       additionalProperties: false,
     },
@@ -609,6 +622,11 @@ export const registeredTools: RegisteredTool[] = [
           items: { type: "string" },
         },
         repoRoot: { type: "string" },
+        workDir: {
+          type: "string",
+          description:
+            "Working directory for the Playwright process. Use in monorepos where playwright.config.ts lives in a subdirectory (e.g. 'frontend').",
+        },
       },
       additionalProperties: false,
     },

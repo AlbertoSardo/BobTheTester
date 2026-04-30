@@ -190,7 +190,7 @@ export async function suggestPolicyClarifications(
     );
   }
 
-  const flowMapFlowIds = toSortedUnique(flowMapConfig.mappings.map((entry) => entry.flowId));
+  const flowMapFlowIds = toSortedUnique((flowMapConfig.mappings ?? []).map((entry) => entry.flowId));
 
   for (const flowId of targetFlows) {
     const flowPolicy = asObjectRecord(flowsRecord[flowId]);

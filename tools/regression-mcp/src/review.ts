@@ -132,6 +132,7 @@ export async function generateRegressionReview(
     reportFormat: input.reportFormat,
     extraArgs: input.extraArgs,
     repoRoot,
+    workDir: input.workDir,
   });
 
   const shouldSkipRuntimeReads = dryRun === true || run.status === "skipped";
@@ -229,7 +230,7 @@ export async function generateRegressionReview(
   const mergedSuggestions = toSortedUnique([...suggestions.suggestions, ...suiteGapSuggestions]);
   const mergedFlowsWithoutSpecs = toSortedUnique([
     ...suggestions.flowsWithoutSpecs,
-    ...suiteValidation.flowResults
+    ...(suiteValidation.flowResults ?? [])
       .filter((result) => result.mappedSpecs.length === 0 || result.missingSpecFiles.length > 0)
       .map((result) => result.flowId),
   ]);

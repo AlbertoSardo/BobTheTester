@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MCP_PACKAGE_DIR="${REPO_ROOT}/tools/regression-mcp"
 DIST_ENTRY="${MCP_PACKAGE_DIR}/dist/index.js"
-LOCAL_CONFIG_PATH="${HOME}/.config/tiware/bobthetester/claude-mcp-server.local.json"
+LOCAL_CONFIG_PATH="${HOME}/.config/bobthetester/mcp-server.local.json"
 WRITE_DESKTOP_CONFIG="false"
 WRITE_OPENCODE_CONFIG="false"
 INSTALL_COMMAND_DIR=""
@@ -138,7 +138,7 @@ const distEntry = process.argv[3];
 
 const content = {
   mcpServers: {
-    "tiware-regression": {
+    "bobthetester": {
       command: "node",
       args: [distEntry],
     },
@@ -178,7 +178,7 @@ if (
   config.mcpServers = {};
 }
 
-config.mcpServers["tiware-regression"] = {
+config.mcpServers["bobthetester"] = {
   command: "node",
   args: [distEntry],
 };

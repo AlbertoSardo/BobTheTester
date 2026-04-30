@@ -189,6 +189,13 @@ export interface RunPlaywrightInput {
   reportFormat?: "json" | "junit" | "line";
   extraArgs?: string[];
   repoRoot?: string;
+  /**
+   * Working directory for the Playwright process. Use this when Playwright
+   * is installed in a subdirectory of the repo (e.g. a monorepo frontend/).
+   * Accepts an absolute path or a path relative to repoRoot.
+   * Defaults to repoRoot when not set.
+   */
+  workDir?: string;
 }
 
 export interface RunPlaywrightOutput extends BaseToolResponse {
@@ -439,6 +446,8 @@ export interface RegressionReviewInput {
   reportFormat?: "json" | "junit" | "line";
   extraArgs?: string[];
   repoRoot?: string;
+  /** Working directory for Playwright. Use in monorepos where Playwright lives in a subdirectory. */
+  workDir?: string;
 }
 
 export interface RegressionReviewOutput {

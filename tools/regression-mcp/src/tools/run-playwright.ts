@@ -149,6 +149,13 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
   const reportPath = resolveFromRepoRoot(repoRoot, input.reportPath ?? toolingConfig.playwright.reportPath);
   const command = toolingConfig.playwright.command;
   const args = [...toolingConfig.playwright.commandArgs, "test"];
+
+  // workDir allows monorepo setups where Playwright lives in a subdirectory.
+  const workDir = input.workDir
+    ? path.isAbsolute(input.workDir)
+      ? input.workDir
+      : path.join(repoRoot, input.workDir)
+    : repoRoot;
   const warnings: string[] = [];
 
   const specs = Array.from(new Set(input.specs)).sort((a, b) => a.localeCompare(b));
@@ -168,7 +175,7 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
       tool: "run_playwright",
       dryRun,
       command: [command, ...args],
-      cwd: repoRoot,
+      cwd: workDir,
       specs,
       reportPath,
       reportFormat,
@@ -220,7 +227,12 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
     await rm(reportPath, { force: true });
 
     const commandEnv: NodeJS.ProcessEnv = { ...process.env };
-    const nodeModulesPath = resolveFromRepoRoot(repoRoot, "tools/regression-mcp/node_modules");
+    // Prefer node_modules in workDir (covers monorepo subdir), fall back to repoRoot
+    const workDirNodeModules = path.join(workDir, "node_modules");
+    const fallbackNodeModules = path.join(repoRoot, "tools/regression-mcp/node_modules");
+    const nodeModulesPath = (await fileExists(workDirNodeModules))
+      ? workDirNodeModules
+      : fallbackNodeModules;
     commandEnv.NODE_PATH = commandEnv.NODE_PATH
       ? `${nodeModulesPath}:${commandEnv.NODE_PATH}`
       : nodeModulesPath;
@@ -231,7 +243,7 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
       commandEnv.PLAYWRIGHT_JUNIT_OUTPUT_NAME = reportPath;
     }
 
-    const result = await runCommand(command, args, repoRoot, commandEnv);
+    const result = await runCommand(command, args, workDir, commandEnv);
 
     if (reportFormat === "json") {
       if (!(await fileExists(reportPath))) {

@@ -361,8 +361,8 @@ async function resolveChangedFilesAndFlows(
   for (const file of changedFiles) {
     const normalizedFile = normalizeForMatch(file);
     const matchedFlows: string[] = [];
-    for (const mapping of flowMapConfig.mappings) {
-      for (const pattern of mapping.filePatterns) {
+    for (const mapping of (flowMapConfig.mappings ?? [])) {
+      for (const pattern of (mapping.filePatterns ?? [])) {
         if (matchesPattern(normalizedFile, normalizeForMatch(pattern))) {
           matchedFlows.push(mapping.flowId);
           break;

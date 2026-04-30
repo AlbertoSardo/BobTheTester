@@ -57,7 +57,7 @@ Or manually in your Claude MCP config:
 ```json
 {
   "mcpServers": {
-    "tiware-regression": {
+    "bobthetester": {
       "command": "node",
       "args": ["/absolute/path/to/BobTheTester/tools/regression-mcp/dist/index.js"]
     }

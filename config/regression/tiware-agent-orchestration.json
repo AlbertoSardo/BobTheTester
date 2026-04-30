@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "agentId": "tiware-regression-reviewer",
+  "agentId": "bobthetester",
   "description": "Orchestration contract for deterministic unified regression review and policy coverage analysis",
   "objective": "Review a change with business-flow awareness, run targeted regression tests, evaluate policy coverage, and return actionable findings.",
   "businessPolicyPath": "config/regression/business-review-policy.json",

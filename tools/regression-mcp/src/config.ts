@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { FlowMapConfig, FlowSpecMapConfig, JsonValue, ToolingConfig } from "./types.js";
@@ -16,6 +16,45 @@ export async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Resolves a config file path, falling back to subdirectory discovery when the
+ * default path does not exist. Searches `frontend/<relativePath>` first, then
+ * any direct non-hidden subdirectory of repoRoot.
+ *
+ * Returns the first path that exists, or the primary path if nothing is found
+ * (let the caller throw a meaningful ENOENT).
+ */
+export async function resolveConfigPath(repoRoot: string, relativePath: string): Promise<string> {
+  const primary = resolveFromRepoRoot(repoRoot, relativePath);
+  if (await fileExists(primary)) {
+    return primary;
+  }
+
+  // Common monorepo subdir: try frontend/ first
+  const frontendCandidate = path.join(repoRoot, "frontend", relativePath);
+  if (await fileExists(frontendCandidate)) {
+    return frontendCandidate;
+  }
+
+  // Scan all direct non-hidden subdirectories
+  try {
+    const entries = await readdir(repoRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") {
+        continue;
+      }
+      const candidate = path.join(repoRoot, entry.name, relativePath);
+      if (await fileExists(candidate)) {
+        return candidate;
+      }
+    }
+  } catch {
+    // readdir failure is non-fatal; fall through to return primary
+  }
+
+  return primary;
 }
 
 export async function findRepositoryRoot(startDir = process.cwd()): Promise<string> {
@@ -71,9 +110,15 @@ export async function loadFlowMapConfig(
   repoRoot: string,
   flowMapPath = DEFAULT_FLOW_MAP_PATH,
 ): Promise<{ path: string; config: FlowMapConfig }> {
-  const resolvedPath = resolveFromRepoRoot(repoRoot, flowMapPath);
+  const resolvedPath = path.isAbsolute(flowMapPath)
+    ? flowMapPath
+    : await resolveConfigPath(repoRoot, flowMapPath);
   try {
-    const config = await readJsonFile<FlowMapConfig>(resolvedPath);
+    const raw = await readJsonFile<Record<string, unknown>>(resolvedPath);
+    const config: FlowMapConfig = {
+      version: typeof raw.version === "number" ? raw.version : 1,
+      mappings: Array.isArray(raw.mappings) ? (raw.mappings as FlowMapConfig["mappings"]) : [],
+    };
     return { path: resolvedPath, config };
   } catch (error) {
     throw new Error(
@@ -87,7 +132,9 @@ export async function loadFlowSpecMapConfig(
   repoRoot: string,
   flowSpecMapPath = DEFAULT_FLOW_SPEC_MAP_PATH,
 ): Promise<{ path: string; config: FlowSpecMapConfig }> {
-  const resolvedPath = resolveFromRepoRoot(repoRoot, flowSpecMapPath);
+  const resolvedPath = path.isAbsolute(flowSpecMapPath)
+    ? flowSpecMapPath
+    : await resolveConfigPath(repoRoot, flowSpecMapPath);
   try {
     const config = await readJsonFile<FlowSpecMapConfig>(resolvedPath);
     return { path: resolvedPath, config };
@@ -103,7 +150,9 @@ export async function loadToolingConfig(
   repoRoot: string,
   toolingConfigPath = DEFAULT_TOOLING_CONFIG_PATH,
 ): Promise<{ path: string; config: ToolingConfig }> {
-  const resolvedPath = resolveFromRepoRoot(repoRoot, toolingConfigPath);
+  const resolvedPath = path.isAbsolute(toolingConfigPath)
+    ? toolingConfigPath
+    : await resolveConfigPath(repoRoot, toolingConfigPath);
   try {
     const config = await readJsonFile<ToolingConfig>(resolvedPath);
     return { path: resolvedPath, config };
@@ -119,7 +168,9 @@ export async function loadBusinessReviewPolicy(
   repoRoot: string,
   businessPolicyPath = DEFAULT_BUSINESS_POLICY_PATH,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
-  const resolvedPath = resolveFromRepoRoot(repoRoot, businessPolicyPath);
+  const resolvedPath = path.isAbsolute(businessPolicyPath)
+    ? businessPolicyPath
+    : await resolveConfigPath(repoRoot, businessPolicyPath);
   try {
     const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
     return { path: resolvedPath, policy };
@@ -135,7 +186,9 @@ export async function loadCodeReviewPolicy(
   repoRoot: string,
   codeReviewPolicyPath = DEFAULT_CODE_REVIEW_POLICY_PATH,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
-  const resolvedPath = resolveFromRepoRoot(repoRoot, codeReviewPolicyPath);
+  const resolvedPath = path.isAbsolute(codeReviewPolicyPath)
+    ? codeReviewPolicyPath
+    : await resolveConfigPath(repoRoot, codeReviewPolicyPath);
   try {
     const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
     return { path: resolvedPath, policy };

@@ -22,8 +22,8 @@ export async function mapImpactedFlows(input: MapImpactedFlowsInput): Promise<Ma
   const unmappedFiles: string[] = [];
 
   for (const file of changedFiles) {
-    const matchedFlowIds = config.mappings
-      .filter((mapping) => mapping.filePatterns.some((pattern) => matchesPattern(file, pattern)))
+    const matchedFlowIds = (config.mappings ?? [])
+      .filter((mapping) => Array.isArray(mapping.filePatterns) && mapping.filePatterns.some((pattern) => matchesPattern(file, pattern)))
       .map((mapping) => mapping.flowId);
 
     const uniqueFlowIds = toSortedUnique(matchedFlowIds);

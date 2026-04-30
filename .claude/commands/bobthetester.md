@@ -30,7 +30,14 @@ Always force `dryRun: false` and `includeUntracked: true` unless explicitly over
 
 If the policy source file is **not** a `.json` file (e.g. it is a PDF, Markdown, Word document, plain text, or any other format):
 
-1. Read the file using your native file-reading capabilities.
+1. Read the file using your native file-reading capabilities. **On macOS**, use `mdls` as the first attempt to extract text from PDFs (no dependencies needed, uses Spotlight index):
+   ```
+   mdls -name kMDItemTextContent /path/to/file.pdf
+   ```
+   If `mdls` returns `(null)`, fall back to:
+   ```
+   strings /path/to/file.pdf | grep -v "^[^a-zA-Z]*$" | head -500
+   ```
 2. Extract the business flows, invariants, regression coverage scenarios, and execution details from the document content.
 3. Generate a `business-review-policy.json` file conforming to this exact structure:
 
@@ -96,6 +103,8 @@ Call `generate_unified_review` with:
 - `includeUntracked: true`
 - Any additional fields from `$ARGUMENTS`
 
+**Monorepo note:** If the project has Playwright installed in a subdirectory (e.g. `frontend/`), pass `workDir: "frontend"` (or the relevant subdir). You can detect this by checking whether `playwright.config.ts` exists at root or in a subdir.
+
 This single call performs the entire pipeline:
 - Detects changed files in the PR
 - Maps them to impacted business flows
@@ -103,6 +112,22 @@ This single call performs the entire pipeline:
 - Runs Playwright on impacted specs
 - Performs deterministic code review checks
 - Evaluates quality gates
+
+**If `generate_unified_review` fails with a JavaScript internal error** (e.g. `Cannot read properties of undefined`, `is not a function`, `is not iterable`), do NOT retry with different parameters. Instead, execute the pipeline step-by-step:
+
+```
+1. get_changed_files         { repoRoot, baseRef: "origin/main", includeUntracked: true }
+2. map_impacted_flows        { changedFiles: [...], repoRoot, flowMapPath }
+3. generate_playwright_suite { policyPath, repoRoot, flowSpecMapPath, flows: [...impactedFlowIds], updateMapping: true }
+4. evaluate_policy_coverage  { policyPath, repoRoot, flowMapPath, flowSpecMapPath, changedFiles: [...], includeUntracked: true }
+5. read_playwright_report    { repoRoot, reportPath: "artifacts/playwright/results.json", reportFormat: "json" }
+```
+
+For step 6 (run Playwright), if `run_playwright` fails with `"Playwright Test did not expect test.describe() to be called here"`, use Bash with an explicit `cd`:
+```bash
+cd <dir-containing-playwright.config.ts> && npx playwright test <spec-files> --project chromium --reporter list
+```
+The directory of `playwright.config.ts` is set in `tooling.json` under `playwright.configFile` — use its dirname.
 
 ### Step 3 — Iterative clarification and re-run loop
 

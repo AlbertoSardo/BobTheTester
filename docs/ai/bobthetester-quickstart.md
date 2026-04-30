@@ -34,7 +34,7 @@ Example entry:
 ```json
 {
   "mcpServers": {
-    "tiware-regression": {
+    "bobthetester": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/TO/BobTheTester/tools/regression-mcp/dist/index.js"

@@ -21,12 +21,12 @@ Setup automatico consigliato (install + build + snippet MCP):
 Config MCP (esempio, percorso assoluto da adattare):
 
 - Template pronto: `config/regression/claude-mcp-server.example.json`
-- Snippet locale generato automaticamente: `~/.config/tiware/bobthetester/claude-mcp-server.local.json`
+- Snippet locale generato automaticamente: `~/.config/bobthetester/mcp-server.local.json`
 
 ```json
 {
   "mcpServers": {
-    "tiware-regression": {
+    "bobthetester": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/TO/BobTheTester/tools/regression-mcp/dist/index.js"
@@ -64,7 +64,7 @@ Output richiesto:
 ## 4) Contratto orchestration
 Config ispezionabile dell'orchestrazione multi-ruolo:
 
-- `config/regression/tiware-agent-orchestration.json`
+- `config/regression/tiware-agent-orchestration.json` (agent orchestration config)
 
 Policy concettuale business versionata:
 
