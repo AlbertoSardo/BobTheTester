@@ -95,6 +95,69 @@ If the policy source file **is** a `.json` file, skip this step and use it direc
 
 Call `read_business_review_policy` with the resolved `policyPath`. Understand which business flows exist and their required regression coverage.
 
+### Step 1.5 — Codebase context extraction
+
+Before generating tests, collect concrete implementation details from the codebase for each impacted flow. This turns scaffold tests into implemented tests with real assertions.
+
+For each flow in `impactedFlowIds`, run the following discovery passes using Bash and Read. Store what you find in memory — you will use it when writing spec files in Step 2.
+
+**1. Existing spec patterns (always first)**
+
+Read all existing spec files in the Playwright flows directory:
+```bash
+ls <playwright-dir>/e2e/flows/*.spec.ts 2>/dev/null
+```
+For each existing spec, extract:
+- Helper functions defined at the top (e.g. `seedAuthenticatedSession`, `gotoSpa`, `stubBackend`, `wrap`)
+- Fake user/fixture objects (`FAKE_USER`, `FAKE_EMPLOYEE_INFO`, fixture employee IDs)
+- `page.route()` patterns and response shapes already in use
+- `addInitScript` patterns for auth injection
+
+This is your **shared helpers baseline** — reuse these patterns exactly in all new specs rather than inventing new ones.
+
+**2. Route discovery**
+
+Find the URL path for the flow's entry screen:
+```bash
+grep -r "path\|route\|Route" <src-dir>/core/routes/ <src-dir>/**/routes*.ts 2>/dev/null | grep -i "<flow-keyword>"
+grep -r "\"/<flow-keyword>\|'/<flow-keyword>" <src-dir> --include="*.ts" --include="*.tsx" -l 2>/dev/null | head -5
+```
+Extract the full URL pattern (e.g. `/employee/:id/entry-exam`). Replace `:id` with the fixture employee ID found in step 1.
+
+**3. DOM anchor discovery**
+
+Find selectors available in the flow's components:
+```bash
+grep -r "data-cy=" <src-dir>/pages/<flow-dir>/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -o 'data-cy="[^"]*"' | sort -u
+grep -r "id=\"" <src-dir>/pages/<flow-dir>/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -o 'id="[^"]*"' | sort -u
+```
+Also grep for visible label strings that can anchor assertions:
+```bash
+grep -r "t(\|i18n\|label\|title" <src-dir>/pages/<flow-dir>/ --include="*.ts" --include="*.tsx" 2>/dev/null | head -20
+```
+
+**4. API endpoint discovery**
+
+Find which API calls the flow makes:
+```bash
+find <src-dir> -name "*.service.ts" -o -name "*.api.ts" | xargs grep -l "<flow-keyword>" 2>/dev/null | head -5
+```
+Read those files and extract: HTTP method, URL pattern, and the TypeScript response interface. These become your `page.route()` stubs.
+
+**5. Write tests directly — do not use `generate_playwright_suite` for impacted flows**
+
+Once you have the context, **write the spec files yourself** using the Write tool:
+- Import and reuse helpers from existing specs (don't copy-paste, import)
+- Use the real entry path from step 2 for navigation
+- Use real `data-cy`, `id`, or text anchors from step 3 for assertions
+- Stub the exact API endpoints from step 4 with minimal valid response shapes
+- Mark every test `[status:implemented]` — not scaffold
+- Follow the exact test title format from the policy's `minimumRegressionCoverage` scenarios
+
+Register the new spec in `flow-spec-map.json` if not already present.
+
+**If context discovery finds nothing** (e.g. the flow directory does not exist yet, or grep returns empty), fall through to `generate_playwright_suite` to produce scaffolds as usual — do not block the pipeline.
+
 ### Step 2 — Run the unified review
 
 Call `generate_unified_review` with:
@@ -108,7 +171,7 @@ Call `generate_unified_review` with:
 This single call performs the entire pipeline:
 - Detects changed files in the PR
 - Maps them to impacted business flows
-- Generates missing Playwright regression tests (scaffold specs)
+- Generates scaffold specs for any flows not already covered by Step 1.5
 - Runs Playwright on impacted specs
 - Performs deterministic code review checks
 - Evaluates quality gates
