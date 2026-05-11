@@ -14,7 +14,8 @@ export type ToolName =
   | "evaluate_policy_coverage"
   | "generate_html_report"
   | "generate_unified_review"
-  | "generate_regression_review";
+  | "generate_regression_review"
+  | "suggest_flow_map_patterns";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
@@ -46,6 +47,13 @@ export interface FlowSpecMapConfig {
 
 export interface ToolingConfig {
   version: number;
+  /**
+   * Root directory (relative to repoRoot) where config files live.
+   * When set, DEFAULT_*_PATH constants are resolved relative to this
+   * directory instead of the repository root. Useful for monorepos where
+   * config lives under e.g. `frontend/`.
+   */
+  configRoot?: string;
   git: {
     defaultBaseRef: string;
     defaultHeadRef: string;

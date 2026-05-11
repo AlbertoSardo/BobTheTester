@@ -332,12 +332,17 @@ async function resolveChangedFilesAndFlows(
   toolingConfig: ToolingConfig,
 ): Promise<{ result: ResolvedChangedFilesAndFlows; warnings: string[] }> {
   const warnings: string[] = [];
+  const configRoot = toolingConfig.configRoot;
   const policyPath = input.policyPath ?? DEFAULT_BUSINESS_POLICY_PATH;
   const flowMapPath = input.flowMapPath ?? DEFAULT_FLOW_MAP_PATH;
   const flowSpecMapPath = input.flowSpecMapPath ?? DEFAULT_FLOW_SPEC_MAP_PATH;
 
   // Load policy
-  const { path: resolvedPolicyPath, policy } = await loadBusinessReviewPolicy(repoRoot, policyPath);
+  const { path: resolvedPolicyPath, policy } = await loadBusinessReviewPolicy(
+    repoRoot,
+    policyPath,
+    configRoot,
+  );
   const flowsRecord = asObjectRecord(policy.flows) ?? {};
   const knownFlowIds = Object.keys(flowsRecord).sort((a, b) => a.localeCompare(b));
 
@@ -356,13 +361,13 @@ async function resolveChangedFilesAndFlows(
   }
 
   // Map changed files to flows
-  const { config: flowMapConfig } = await loadFlowMapConfig(repoRoot, flowMapPath);
+  const { config: flowMapConfig } = await loadFlowMapConfig(repoRoot, flowMapPath, configRoot);
   const fileToFlows: Record<string, string[]> = {};
   for (const file of changedFiles) {
     const normalizedFile = normalizeForMatch(file);
     const matchedFlows: string[] = [];
-    for (const mapping of (flowMapConfig.mappings ?? [])) {
-      for (const pattern of (mapping.filePatterns ?? [])) {
+    for (const mapping of flowMapConfig.mappings ?? []) {
+      for (const pattern of mapping.filePatterns ?? []) {
         if (matchesPattern(normalizedFile, normalizeForMatch(pattern))) {
           matchedFlows.push(mapping.flowId);
           break;
@@ -381,7 +386,7 @@ async function resolveChangedFilesAndFlows(
   );
 
   // Load flow-spec map
-  const { config: flowSpecMapConfig } = await loadFlowSpecMapConfig(repoRoot, flowSpecMapPath);
+  const { config: flowSpecMapConfig } = await loadFlowSpecMapConfig(repoRoot, flowSpecMapPath, configRoot);
 
   // Load coverage report (warnings only — coverage loaded separately)
   void toolingConfig; // used by caller for coverageReportPath

@@ -1,6 +1,12 @@
 import { generateRegressionReview } from "./review.js";
 import { evaluatePolicyCoverage } from "./tools/evaluate-policy-coverage.js";
-import type { RegressionReviewOutput, RiskLevel, UnifiedReviewInput, UnifiedReviewOutput } from "./types.js";
+import type {
+  EvaluatePolicyCoverageOutput,
+  RegressionReviewOutput,
+  RiskLevel,
+  UnifiedReviewInput,
+  UnifiedReviewOutput,
+} from "./types.js";
 import { toSortedUnique } from "./utils/fs.js";
 
 function riskPriority(level: RiskLevel): number {
@@ -81,20 +87,97 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
   const includeUntracked = input.includeUntracked ?? true;
   const dryRun = input.dryRun ?? false;
 
-  const regressionReview = await generateRegressionReview({
-    ...input,
-    policyPath: input.regressionPolicyPath ?? input.policyPath,
-    includeUntracked,
-    dryRun,
-  });
+  let regressionReview: RegressionReviewOutput;
+  try {
+    regressionReview = await generateRegressionReview({
+      ...input,
+      policyPath: input.regressionPolicyPath ?? input.policyPath,
+      includeUntracked,
+      dryRun,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const now = new Date().toISOString();
+    regressionReview = {
+      version: 1,
+      generatedAt: now,
+      repoRoot: input.repoRoot ?? process.cwd(),
+      inputs: {
+        baseRef: input.baseRef,
+        headRef: input.headRef,
+        includeUntracked,
+        changedFiles: [],
+        dryRun,
+      },
+      mapping: { fileToFlows: {}, unmappedFiles: [] },
+      impactedFlows: [],
+      suiteGeneration: {
+        targetFlows: [],
+        createdSpecFiles: [],
+        updatedSpecFiles: [],
+        unchangedSpecFiles: [],
+        mappingUpdated: false,
+      },
+      selectedSpecs: [],
+      passFailSummary: {
+        runnerStatus: "skipped",
+        exitCode: null,
+        totals: { tests: 0, passed: 0, failed: 0, skipped: 0, pending: 0, durationMs: 0 },
+      },
+      failedTests: [],
+      artifactPaths: {
+        screenshots: [],
+        failedScreenshots: [],
+        videos: [],
+        failedVideos: [],
+        reports: [],
+      },
+      suggestedMissingTests: { flowsWithoutSpecs: [], unmappedFiles: [], suggestions: [] },
+      clarificationQuestions: [],
+      suiteCompleteness: { isComplete: false, incompleteFlows: [], scaffoldFlows: [] },
+      riskLevel: "critical",
+      execution: {
+        command: [],
+        reportPath: "",
+        reportFormat: "json",
+        startedAt: now,
+        finishedAt: now,
+        durationMs: 0,
+      },
+      warnings: [`Regression review failed: ${errorMessage}. Proceeding with partial results.`],
+    };
+  }
 
-  const policyCoverage = await evaluatePolicyCoverage({
-    changedFiles: regressionReview.inputs.changedFiles,
-    policyPath: input.policyPath,
-    flowMapPath: input.flowMapPath,
-    flowSpecMapPath: input.flowSpecMapPath,
-    repoRoot: regressionReview.repoRoot,
-  });
+  let policyCoverage: EvaluatePolicyCoverageOutput;
+  try {
+    policyCoverage = await evaluatePolicyCoverage({
+      changedFiles: regressionReview.inputs.changedFiles,
+      policyPath: input.policyPath,
+      flowMapPath: input.flowMapPath,
+      flowSpecMapPath: input.flowSpecMapPath,
+      repoRoot: regressionReview.repoRoot,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    policyCoverage = {
+      tool: "evaluate_policy_coverage",
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      repoRoot: regressionReview.repoRoot,
+      policyPath: input.policyPath ?? "",
+      inputs: {
+        changedFiles: regressionReview.inputs.changedFiles,
+        impactedFlowIds: [],
+      },
+      flowScores: [],
+      overallScore: 0,
+      coverageGatePassed: false,
+      coverageGateThreshold: 70,
+      riskLevel: "critical",
+      recommendedActions: [],
+      warnings: [`Policy coverage evaluation failed: ${errorMessage}. Proceeding with partial results.`],
+    };
+  }
 
   const overallRiskLevel = maxRiskLevel([regressionReview.riskLevel, policyCoverage.riskLevel]);
 

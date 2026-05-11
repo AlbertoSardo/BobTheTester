@@ -12,6 +12,10 @@ import { generateRegressionReview } from "./review.js";
 import { suggestPolicyClarifications } from "./tools/suggest-policy-clarifications.js";
 import { generateUnifiedReview } from "./unified-review.js";
 import { runPlaywright } from "./tools/run-playwright.js";
+import {
+  suggestFlowMapPatterns,
+  type SuggestFlowMapPatternsInput,
+} from "./tools/suggest-flow-map-patterns.js";
 import { suggestMissingTests } from "./tools/suggest-missing-tests.js";
 import { validatePlaywrightSuite } from "./tools/validate-playwright-suite.js";
 import type {
@@ -290,6 +294,18 @@ function toGenerateHtmlReportInput(input: Record<string, unknown>): GenerateHtml
   return {
     unifiedReviewOutput,
     outputPath: readOptionalString(input, "outputPath"),
+    repoRoot: readOptionalString(input, "repoRoot"),
+  };
+}
+
+function toSuggestFlowMapPatternsInput(input: Record<string, unknown>): SuggestFlowMapPatternsInput {
+  return {
+    changedFiles: readOptionalStringArray(input, "changedFiles"),
+    policyPath: readOptionalString(input, "policyPath"),
+    flowMapPath: readOptionalString(input, "flowMapPath"),
+    baseRef: readOptionalString(input, "baseRef"),
+    headRef: readOptionalString(input, "headRef"),
+    includeUntracked: readOptionalBoolean(input, "includeUntracked"),
     repoRoot: readOptionalString(input, "repoRoot"),
   };
 }
@@ -649,6 +665,28 @@ export const registeredTools: RegisteredTool[] = [
       additionalProperties: false,
     },
     handler: async (input) => generateHtmlReport(toGenerateHtmlReportInput(input)),
+  },
+  {
+    name: "suggest_flow_map_patterns",
+    description:
+      "Analyzes changed files and suggests missing or improved glob patterns for the flow-map configuration.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        changedFiles: {
+          type: "array",
+          items: { type: "string" },
+        },
+        policyPath: { type: "string" },
+        flowMapPath: { type: "string" },
+        baseRef: { type: "string" },
+        headRef: { type: "string" },
+        includeUntracked: { type: "boolean" },
+        repoRoot: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    handler: async (input) => suggestFlowMapPatterns(toSuggestFlowMapPatternsInput(input)),
   },
 ];
 

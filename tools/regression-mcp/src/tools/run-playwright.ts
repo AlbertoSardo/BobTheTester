@@ -140,6 +140,37 @@ async function runCommand(
   });
 }
 
+/**
+ * Resolve the working directory for the Playwright process.
+ *
+ * Priority:
+ * 1. Explicit `inputWorkDir` (absolute or relative to repoRoot).
+ * 2. Auto-derive from `configFile` / `toolingConfigFile` – when the config
+ *    lives in a subdirectory (e.g. `frontend/playwright.config.ts`) we use
+ *    that subdirectory as the working directory.
+ * 3. Fall back to `repoRoot`.
+ */
+function resolveWorkDir(
+  repoRoot: string,
+  inputWorkDir?: string,
+  configFile?: string,
+  toolingConfigFile?: string,
+): string {
+  // Explicit workDir takes priority
+  if (inputWorkDir) {
+    return path.isAbsolute(inputWorkDir) ? inputWorkDir : path.join(repoRoot, inputWorkDir);
+  }
+  // Auto-derive from configFile path if it's in a subdirectory
+  const effectiveConfig = configFile || toolingConfigFile;
+  if (effectiveConfig && !path.isAbsolute(effectiveConfig)) {
+    const configDir = path.dirname(effectiveConfig);
+    if (configDir && configDir !== "." && configDir !== "") {
+      return path.join(repoRoot, configDir);
+    }
+  }
+  return repoRoot;
+}
+
 export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlaywrightOutput> {
   const repoRoot = await findRepositoryRoot(input.repoRoot ?? process.cwd());
   const { config: toolingConfig } = await loadToolingConfig(repoRoot);
@@ -151,11 +182,12 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
   const args = [...toolingConfig.playwright.commandArgs, "test"];
 
   // workDir allows monorepo setups where Playwright lives in a subdirectory.
-  const workDir = input.workDir
-    ? path.isAbsolute(input.workDir)
-      ? input.workDir
-      : path.join(repoRoot, input.workDir)
-    : repoRoot;
+  const workDir = resolveWorkDir(
+    repoRoot,
+    input.workDir,
+    input.configFile,
+    toolingConfig.playwright.configFile,
+  );
   const warnings: string[] = [];
 
   const specs = Array.from(new Set(input.specs)).sort((a, b) => a.localeCompare(b));
@@ -230,9 +262,7 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
     // Prefer node_modules in workDir (covers monorepo subdir), fall back to repoRoot
     const workDirNodeModules = path.join(workDir, "node_modules");
     const fallbackNodeModules = path.join(repoRoot, "tools/regression-mcp/node_modules");
-    const nodeModulesPath = (await fileExists(workDirNodeModules))
-      ? workDirNodeModules
-      : fallbackNodeModules;
+    const nodeModulesPath = (await fileExists(workDirNodeModules)) ? workDirNodeModules : fallbackNodeModules;
     commandEnv.NODE_PATH = commandEnv.NODE_PATH
       ? `${nodeModulesPath}:${commandEnv.NODE_PATH}`
       : nodeModulesPath;
@@ -243,7 +273,14 @@ export async function runPlaywright(input: RunPlaywrightInput): Promise<RunPlayw
       commandEnv.PLAYWRIGHT_JUNIT_OUTPUT_NAME = reportPath;
     }
 
-    const result = await runCommand(command, args, workDir, commandEnv);
+    // Use local playwright binary from workDir if available
+    const localPlaywrightBin = path.join(workDir, "node_modules", ".bin", "playwright");
+    const useLocalBin = await fileExists(localPlaywrightBin);
+    const effectiveCommand = useLocalBin ? localPlaywrightBin : command;
+    const testIndex = args.indexOf("test");
+    const effectiveArgs = useLocalBin ? ["test", ...args.slice(testIndex + 1)] : args;
+
+    const result = await runCommand(effectiveCommand, effectiveArgs, workDir, commandEnv);
 
     if (reportFormat === "json") {
       if (!(await fileExists(reportPath))) {

@@ -87,6 +87,20 @@ export function resolveFromRepoRoot(repoRoot: string, filePath: string): string 
   return path.join(repoRoot, filePath);
 }
 
+/**
+ * Resolve a config-relative path, prepending `configRoot` when it is
+ * specified. For example, if configRoot is `"frontend"` and relativePath is
+ * `"config/regression/flow-map.json"`, the result is
+ * `"frontend/config/regression/flow-map.json"` (still relative – the caller
+ * is expected to join with repoRoot afterwards).
+ */
+export function resolveConfigFile(configRoot: string | undefined, relativePath: string): string {
+  if (configRoot) {
+    return path.join(configRoot, relativePath);
+  }
+  return relativePath;
+}
+
 async function readJsonFile<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, "utf-8");
   let parsed: unknown;
@@ -109,10 +123,13 @@ async function readJsonFile<T>(filePath: string): Promise<T> {
 export async function loadFlowMapConfig(
   repoRoot: string,
   flowMapPath = DEFAULT_FLOW_MAP_PATH,
+  configRoot?: string,
 ): Promise<{ path: string; config: FlowMapConfig }> {
-  const resolvedPath = path.isAbsolute(flowMapPath)
-    ? flowMapPath
-    : await resolveConfigPath(repoRoot, flowMapPath);
+  const effectivePath =
+    flowMapPath === DEFAULT_FLOW_MAP_PATH ? resolveConfigFile(configRoot, flowMapPath) : flowMapPath;
+  const resolvedPath = path.isAbsolute(effectivePath)
+    ? effectivePath
+    : await resolveConfigPath(repoRoot, effectivePath);
   try {
     const raw = await readJsonFile<Record<string, unknown>>(resolvedPath);
     const config: FlowMapConfig = {
@@ -131,10 +148,15 @@ export async function loadFlowMapConfig(
 export async function loadFlowSpecMapConfig(
   repoRoot: string,
   flowSpecMapPath = DEFAULT_FLOW_SPEC_MAP_PATH,
+  configRoot?: string,
 ): Promise<{ path: string; config: FlowSpecMapConfig }> {
-  const resolvedPath = path.isAbsolute(flowSpecMapPath)
-    ? flowSpecMapPath
-    : await resolveConfigPath(repoRoot, flowSpecMapPath);
+  const effectivePath =
+    flowSpecMapPath === DEFAULT_FLOW_SPEC_MAP_PATH
+      ? resolveConfigFile(configRoot, flowSpecMapPath)
+      : flowSpecMapPath;
+  const resolvedPath = path.isAbsolute(effectivePath)
+    ? effectivePath
+    : await resolveConfigPath(repoRoot, effectivePath);
   try {
     const config = await readJsonFile<FlowSpecMapConfig>(resolvedPath);
     return { path: resolvedPath, config };
@@ -150,9 +172,28 @@ export async function loadToolingConfig(
   repoRoot: string,
   toolingConfigPath = DEFAULT_TOOLING_CONFIG_PATH,
 ): Promise<{ path: string; config: ToolingConfig }> {
-  const resolvedPath = path.isAbsolute(toolingConfigPath)
-    ? toolingConfigPath
-    : await resolveConfigPath(repoRoot, toolingConfigPath);
+  let resolvedPath: string;
+
+  if (path.isAbsolute(toolingConfigPath)) {
+    resolvedPath = toolingConfigPath;
+  } else {
+    // Search in multiple common monorepo locations; first hit wins.
+    const candidates = [
+      path.join(repoRoot, toolingConfigPath),
+      path.join(repoRoot, "frontend", toolingConfigPath),
+    ];
+
+    let found: string | undefined;
+    for (const candidate of candidates) {
+      if (await fileExists(candidate)) {
+        found = candidate;
+        break;
+      }
+    }
+
+    resolvedPath = found ?? (await resolveConfigPath(repoRoot, toolingConfigPath));
+  }
+
   try {
     const config = await readJsonFile<ToolingConfig>(resolvedPath);
     return { path: resolvedPath, config };
@@ -167,10 +208,15 @@ export async function loadToolingConfig(
 export async function loadBusinessReviewPolicy(
   repoRoot: string,
   businessPolicyPath = DEFAULT_BUSINESS_POLICY_PATH,
+  configRoot?: string,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
-  const resolvedPath = path.isAbsolute(businessPolicyPath)
-    ? businessPolicyPath
-    : await resolveConfigPath(repoRoot, businessPolicyPath);
+  const effectivePath =
+    businessPolicyPath === DEFAULT_BUSINESS_POLICY_PATH
+      ? resolveConfigFile(configRoot, businessPolicyPath)
+      : businessPolicyPath;
+  const resolvedPath = path.isAbsolute(effectivePath)
+    ? effectivePath
+    : await resolveConfigPath(repoRoot, effectivePath);
   try {
     const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
     return { path: resolvedPath, policy };
@@ -185,10 +231,15 @@ export async function loadBusinessReviewPolicy(
 export async function loadCodeReviewPolicy(
   repoRoot: string,
   codeReviewPolicyPath = DEFAULT_CODE_REVIEW_POLICY_PATH,
+  configRoot?: string,
 ): Promise<{ path: string; policy: { [key: string]: JsonValue } }> {
-  const resolvedPath = path.isAbsolute(codeReviewPolicyPath)
-    ? codeReviewPolicyPath
-    : await resolveConfigPath(repoRoot, codeReviewPolicyPath);
+  const effectivePath =
+    codeReviewPolicyPath === DEFAULT_CODE_REVIEW_POLICY_PATH
+      ? resolveConfigFile(configRoot, codeReviewPolicyPath)
+      : codeReviewPolicyPath;
+  const resolvedPath = path.isAbsolute(effectivePath)
+    ? effectivePath
+    : await resolveConfigPath(repoRoot, effectivePath);
   try {
     const policy = await readJsonFile<{ [key: string]: JsonValue }>(resolvedPath);
     return { path: resolvedPath, policy };

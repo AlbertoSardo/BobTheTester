@@ -628,7 +628,11 @@ export async function generateCodeReviewReport(
   const baseRef = input.baseRef ?? toolingConfig.git.defaultBaseRef;
   const headRef = input.headRef ?? toolingConfig.git.defaultHeadRef;
 
-  const { path: resolvedPolicyPath, policy } = await loadCodeReviewPolicy(repoRoot, policyPath);
+  const { path: resolvedPolicyPath, policy } = await loadCodeReviewPolicy(
+    repoRoot,
+    policyPath,
+    toolingConfig.configRoot,
+  );
   const parsedPolicy = parseCodeReviewPolicy(policy, warnings);
 
   const changedFilesInput = Array.isArray(input.changedFiles)

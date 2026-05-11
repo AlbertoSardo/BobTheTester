@@ -87,9 +87,12 @@ export async function generateRegressionReview(
     repoRoot,
   });
 
+  const safeImpactedFlowIds = impacted.impactedFlowIds ?? [];
+  const safeUnmappedFiles = impacted.unmappedFiles ?? [];
+
   // generatePlaywrightSuite must complete first as it may create/update spec files and flow-spec-map
   const suiteGeneration = await generatePlaywrightSuite({
-    flows: impacted.impactedFlowIds,
+    flows: safeImpactedFlowIds,
     policyPath: input.policyPath,
     flowSpecMapPath: input.flowSpecMapPath,
     repoRoot,
@@ -101,18 +104,18 @@ export async function generateRegressionReview(
   // - suggestPolicyClarifications only needs policy + impacted flow data
   const [selected, suggestions, policyClarifications] = await Promise.all([
     listRelevantPlaywrightSpecs({
-      impactedFlowIds: impacted.impactedFlowIds,
+      impactedFlowIds: safeImpactedFlowIds,
       flowSpecMapPath: input.flowSpecMapPath,
       repoRoot,
     }),
     suggestMissingTests({
-      impactedFlowIds: impacted.impactedFlowIds,
-      unmappedFiles: impacted.unmappedFiles,
+      impactedFlowIds: safeImpactedFlowIds,
+      unmappedFiles: safeUnmappedFiles,
       flowSpecMapPath: input.flowSpecMapPath,
       repoRoot,
     }),
     suggestPolicyClarifications({
-      flows: impacted.impactedFlowIds,
+      flows: safeImpactedFlowIds,
       policyPath: input.policyPath,
       flowMapPath: input.flowMapPath,
       flowSpecMapPath: input.flowSpecMapPath,
@@ -120,10 +123,16 @@ export async function generateRegressionReview(
     }),
   ]);
 
+  const safeSpecPatterns = selected.specPatterns ?? [];
+  const safeSuggestions = suggestions.suggestions ?? [];
+  const safeFlowsWithoutSpecs = suggestions.flowsWithoutSpecs ?? [];
+  const safeSuggestionsUnmappedFiles = suggestions.unmappedFiles ?? [];
+  const safePolicyClarificationQuestions = policyClarifications.questions ?? [];
+
   const dryRun = input.dryRun ?? false;
 
   const run = await runPlaywright({
-    specs: selected.specPatterns,
+    specs: safeSpecPatterns,
     dryRun,
     headed: input.headed,
     project: input.project,
@@ -169,7 +178,7 @@ export async function generateRegressionReview(
         stubReport,
         stubArtifacts,
         await validatePlaywrightSuite({
-          flows: impacted.impactedFlowIds,
+          flows: safeImpactedFlowIds,
           policyPath: input.policyPath,
           flowSpecMapPath: input.flowSpecMapPath,
           repoRoot,
@@ -186,15 +195,20 @@ export async function generateRegressionReview(
           repoRoot,
         }),
         validatePlaywrightSuite({
-          flows: impacted.impactedFlowIds,
+          flows: safeImpactedFlowIds,
           policyPath: input.policyPath,
           flowSpecMapPath: input.flowSpecMapPath,
           repoRoot,
         }),
       ]);
 
+  const safeFlowResults = suiteValidation.flowResults ?? [];
+  const safeSuiteIsComplete = suiteValidation.isComplete ?? false;
+  const safeIncompleteFlows = suiteValidation.incompleteFlows ?? [];
+  const safeScaffoldFlows = suiteValidation.scaffoldFlows ?? [];
+
   const suiteGapSuggestions: string[] = [];
-  for (const flowResult of suiteValidation.flowResults) {
+  for (const flowResult of safeFlowResults) {
     if (flowResult.missingSpecFiles.length > 0) {
       suiteGapSuggestions.push(
         `Flow '${flowResult.flowId}' is missing spec files: ${flowResult.missingSpecFiles.join(", ")}.`,
@@ -227,22 +241,22 @@ export async function generateRegressionReview(
     ...suiteValidation.warnings,
   ]);
 
-  const mergedSuggestions = toSortedUnique([...suggestions.suggestions, ...suiteGapSuggestions]);
+  const mergedSuggestions = toSortedUnique([...safeSuggestions, ...suiteGapSuggestions]);
   const mergedFlowsWithoutSpecs = toSortedUnique([
-    ...suggestions.flowsWithoutSpecs,
-    ...(suiteValidation.flowResults ?? [])
+    ...safeFlowsWithoutSpecs,
+    ...safeFlowResults
       .filter((result) => result.mappedSpecs.length === 0 || result.missingSpecFiles.length > 0)
       .map((result) => result.flowId),
   ]);
 
-  const hasBlockingClarifications = policyClarifications.questions.some((question) => question.blocking);
-  const hasCoverageGaps = mergedSuggestions.length > 0 || suiteValidation.scaffoldFlows.length > 0;
+  const hasBlockingClarifications = safePolicyClarificationQuestions.some((question) => question.blocking);
+  const hasCoverageGaps = mergedSuggestions.length > 0 || safeScaffoldFlows.length > 0;
   const riskLevel = deriveRegressionRiskLevel(
     report.totals.failed,
     hasCoverageGaps,
-    suiteValidation.isComplete,
-    impacted.impactedFlowIds,
-    selected.specPatterns,
+    safeSuiteIsComplete,
+    safeImpactedFlowIds,
+    safeSpecPatterns,
     run.status,
     hasBlockingClarifications,
   );
@@ -260,9 +274,9 @@ export async function generateRegressionReview(
     },
     mapping: {
       fileToFlows: impacted.fileToFlows,
-      unmappedFiles: impacted.unmappedFiles,
+      unmappedFiles: safeUnmappedFiles,
     },
-    impactedFlows: impacted.impactedFlowIds,
+    impactedFlows: safeImpactedFlowIds,
     suiteGeneration: {
       targetFlows: suiteGeneration.targetFlows,
       createdSpecFiles: suiteGeneration.createdSpecFiles,
@@ -270,7 +284,7 @@ export async function generateRegressionReview(
       unchangedSpecFiles: suiteGeneration.unchangedSpecFiles,
       mappingUpdated: suiteGeneration.mappingUpdated,
     },
-    selectedSpecs: selected.specPatterns,
+    selectedSpecs: safeSpecPatterns,
     passFailSummary: {
       runnerStatus: run.status,
       exitCode: run.exitCode,
@@ -286,14 +300,14 @@ export async function generateRegressionReview(
     },
     suggestedMissingTests: {
       flowsWithoutSpecs: mergedFlowsWithoutSpecs,
-      unmappedFiles: suggestions.unmappedFiles,
+      unmappedFiles: safeSuggestionsUnmappedFiles,
       suggestions: mergedSuggestions,
     },
-    clarificationQuestions: policyClarifications.questions,
+    clarificationQuestions: safePolicyClarificationQuestions,
     suiteCompleteness: {
-      isComplete: suiteValidation.isComplete,
-      incompleteFlows: suiteValidation.incompleteFlows,
-      scaffoldFlows: suiteValidation.scaffoldFlows,
+      isComplete: safeSuiteIsComplete,
+      incompleteFlows: safeIncompleteFlows,
+      scaffoldFlows: safeScaffoldFlows,
     },
     riskLevel,
     execution: {

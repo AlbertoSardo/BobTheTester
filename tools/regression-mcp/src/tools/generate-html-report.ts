@@ -3,7 +3,6 @@ import path from "node:path";
 
 import { findRepositoryRoot, resolveFromRepoRoot } from "../config.js";
 import type {
-  EvaluatePolicyCoverageOutput,
   FlowCoverageScore,
   GenerateHtmlReportInput,
   GenerateHtmlReportOutput,
@@ -11,6 +10,37 @@ import type {
 } from "../types.js";
 
 const DEFAULT_OUTPUT_PATH = "artifacts/report.html";
+
+/* ---------- Safe sub-types used after applying null-guards ---------- */
+
+interface SafeRegressionReview {
+  passFailSummary: {
+    runnerStatus: "skipped" | "passed" | "failed";
+    totals: {
+      tests: number;
+      passed: number;
+      failed: number;
+      skipped: number;
+      pending: number;
+      durationMs: number;
+    };
+  };
+  failedTests: string[];
+}
+
+interface SafePolicyCoverage {
+  overallScore: number;
+  coverageGateThreshold: number;
+  coverageGatePassed: boolean;
+  flowScores: FlowCoverageScore[];
+}
+
+interface SafeQualityGates {
+  suiteCompletenessGatePassed: boolean;
+  policyCoverageGatePassed: boolean;
+  regressionRiskGatePassed: boolean;
+  combinedGatePassed: boolean;
+}
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -99,10 +129,7 @@ function renderStyles(): string {
 </style>`;
 }
 
-function renderSummaryCards(data: UnifiedReviewOutput): string {
-  const reg = data.regressionReview;
-  const cov = data.policyCoverage;
-
+function renderSummaryCards(reg: SafeRegressionReview, cov: SafePolicyCoverage): string {
   return `<div class="grid">
   <!-- Summary cards -->
   <div class="card">
@@ -120,10 +147,7 @@ function renderSummaryCards(data: UnifiedReviewOutput): string {
 </div>`;
 }
 
-function renderQualityGates(
-  gates: UnifiedReviewOutput["qualityGates"],
-  cov: EvaluatePolicyCoverageOutput,
-): string {
+function renderQualityGates(gates: SafeQualityGates, cov: SafePolicyCoverage): string {
   return `<h2>Quality Gates</h2>
 <div class="card">
 <table>
@@ -305,12 +329,42 @@ function hideFlowDetail() {
 </script>`;
 }
 
-function generateHtml(data: UnifiedReviewOutput): string {
-  const reg = data.regressionReview;
-  const cov = data.policyCoverage;
-  const gates = data.qualityGates;
+function generateHtml(data: Partial<UnifiedReviewOutput>): string {
+  const isPartial = !data.regressionReview || !data.policyCoverage || !data.qualityGates;
+
+  const reg: SafeRegressionReview = data.regressionReview ?? {
+    passFailSummary: {
+      runnerStatus: "skipped" as const,
+      totals: { tests: 0, passed: 0, failed: 0, skipped: 0, pending: 0, durationMs: 0 },
+    },
+    failedTests: [],
+  };
+
+  const cov: SafePolicyCoverage = data.policyCoverage ?? {
+    overallScore: 0,
+    coverageGateThreshold: 70,
+    coverageGatePassed: false,
+    flowScores: [],
+  };
+
+  const gates: SafeQualityGates = data.qualityGates ?? {
+    suiteCompletenessGatePassed: false,
+    policyCoverageGatePassed: false,
+    regressionRiskGatePassed: false,
+    combinedGatePassed: false,
+  };
+
+  const riskLevel = data.overallRiskLevel ?? "critical";
+  const actions = data.overallRecommendedActions ?? ["Run generate_unified_review for full results."];
+  const warnings = data.warnings ?? ["Partial data: some sections may be incomplete."];
 
   const flowScoresJson = buildFlowScoresJson(cov.flowScores);
+
+  const partialBanner = isPartial
+    ? `<div class="card card-full" style="border-color:var(--yellow);margin-bottom:20px">
+  <p style="color:var(--yellow);font-weight:600">&#9888; Partial data &mdash; some upstream tools did not complete. Sections below may show default/zero values.</p>
+</div>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -324,9 +378,11 @@ ${renderStyles()}
 <body>
 
 <h1>BobTheTester Report</h1>
-<p class="subtitle">Generated ${escapeHtml(data.generatedAt)} &mdash; Risk: <span class="risk-badge risk-${data.overallRiskLevel}">${data.overallRiskLevel}</span></p>
+<p class="subtitle">Generated ${escapeHtml(data.generatedAt ?? new Date().toISOString())} &mdash; Risk: <span class="risk-badge risk-${riskLevel}">${riskLevel}</span></p>
 
-${renderSummaryCards(data)}
+${partialBanner}
+
+${renderSummaryCards(reg, cov)}
 
 ${renderQualityGates(gates, cov)}
 
@@ -368,17 +424,17 @@ ${
 <h2>Recommended Actions</h2>
 <div class="card">
 <ul class="actions-list">
-  ${data.overallRecommendedActions.map((a) => `<li>${escapeHtml(a)}</li>`).join("\n  ")}
+  ${actions.map((a) => `<li>${escapeHtml(a)}</li>`).join("\n  ")}
 </ul>
 </div>
 
 <!-- Warnings -->
 ${
-  data.warnings.length > 0
+  warnings.length > 0
     ? `<h2>Warnings</h2>
 <div class="card">
 <ul class="actions-list">
-  ${data.warnings.map((w) => `<li style="color:var(--yellow)">${escapeHtml(w)}</li>`).join("\n  ")}
+  ${warnings.map((w) => `<li style="color:var(--yellow)">${escapeHtml(w)}</li>`).join("\n  ")}
 </ul>
 </div>`
     : ""
