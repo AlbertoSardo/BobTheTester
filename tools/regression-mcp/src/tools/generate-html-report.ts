@@ -42,8 +42,9 @@ interface SafeQualityGates {
   combinedGatePassed: boolean;
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function escapeHtml(text: unknown): string {
+  const str = typeof text === "string" ? text : (JSON.stringify(text) ?? "");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function scoreColor(score: number): string {
