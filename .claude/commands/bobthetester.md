@@ -219,11 +219,13 @@ If there are blocking questions:
 
 ### Step 4 — Generate HTML dashboard
 
-Call `generate_html_report` with the full `generate_unified_review` output as `unifiedReviewOutput`. This generates an interactive HTML dashboard at `artifacts/report.html` with:
-- Treemap visualization of coverage by flow (click to drill down)
-- Radar chart showing flow coverage comparison
-- Per-flow radar with must-hold, regression, and branch dimensions
-- Quality gates table and recommended actions
+Call `generate_html_report` to produce an interactive HTML dashboard at `artifacts/report.html` with treemap, radar charts, quality gates table, and recommended actions.
+
+**If the unified review output is small enough to pass inline** (< ~100 KB), pass it directly as `unifiedReviewOutput`.
+
+**If the output is too large** (tool call fails with size/truncation errors):
+1. Save the unified review JSON to a file: `artifacts/unified-review-output.json`
+2. Call `generate_html_report` with `unifiedReviewJsonPath: "artifacts/unified-review-output.json"` instead of passing the object inline.
 
 After generating, tell the user: "Interactive report generated: artifacts/report.html"
 

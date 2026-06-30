@@ -527,6 +527,7 @@ export interface RegressionReviewOutput {
 
 export interface GenerateHtmlReportInput {
   unifiedReviewOutput?: UnifiedReviewOutput;
+  unifiedReviewJsonPath?: string;
   outputPath?: string;
   repoRoot?: string;
 }

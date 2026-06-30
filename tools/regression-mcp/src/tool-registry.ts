@@ -293,6 +293,7 @@ function toGenerateHtmlReportInput(input: Record<string, unknown>): GenerateHtml
   const unifiedReviewOutput = raw as GenerateHtmlReportInput["unifiedReviewOutput"];
   return {
     unifiedReviewOutput,
+    unifiedReviewJsonPath: readOptionalString(input, "unifiedReviewJsonPath"),
     outputPath: readOptionalString(input, "outputPath"),
     repoRoot: readOptionalString(input, "repoRoot"),
   };
@@ -651,13 +652,18 @@ export const registeredTools: RegisteredTool[] = [
   {
     name: "generate_html_report",
     description:
-      "Generates an interactive HTML dashboard with D3.js visualizations from unified review output.",
+      "Generates an interactive HTML dashboard with D3.js visualizations. Accepts the unified review output inline or as a path to a JSON file (use unifiedReviewJsonPath for large outputs).",
     inputSchema: {
       type: "object",
       properties: {
         unifiedReviewOutput: {
           type: "object",
-          description: "The full output from generate_unified_review",
+          description: "The full output from generate_unified_review (inline)",
+        },
+        unifiedReviewJsonPath: {
+          type: "string",
+          description:
+            "Path to a JSON file containing the generate_unified_review output. Use this instead of unifiedReviewOutput when the object is too large to pass inline.",
         },
         outputPath: { type: "string" },
         repoRoot: { type: "string" },

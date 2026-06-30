@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { findRepositoryRoot, resolveFromRepoRoot } from "../config.js";
+import { fileExists, findRepositoryRoot, resolveFromRepoRoot } from "../config.js";
 import type {
   FlowCoverageScore,
   GenerateHtmlReportInput,
@@ -455,7 +455,34 @@ export async function generateHtmlReport(
   const outputPath = resolveFromRepoRoot(repoRoot, input.outputPath ?? DEFAULT_OUTPUT_PATH);
   const warnings: string[] = [];
 
-  if (!input.unifiedReviewOutput) {
+  // Resolve the unified review data: prefer inline object, fall back to JSON file path
+  let reviewData = input.unifiedReviewOutput as Partial<UnifiedReviewOutput> | undefined;
+
+  if (!reviewData && input.unifiedReviewJsonPath) {
+    const jsonPath = path.isAbsolute(input.unifiedReviewJsonPath)
+      ? input.unifiedReviewJsonPath
+      : resolveFromRepoRoot(repoRoot, input.unifiedReviewJsonPath);
+
+    if (await fileExists(jsonPath)) {
+      try {
+        const raw = await readFile(jsonPath, "utf-8");
+        const parsed = JSON.parse(raw) as unknown;
+        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+          reviewData = parsed as Partial<UnifiedReviewOutput>;
+        } else {
+          warnings.push(`JSON file at '${jsonPath}' is not a valid object.`);
+        }
+      } catch (error) {
+        warnings.push(
+          `Failed to read unified review JSON from '${jsonPath}': ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else {
+      warnings.push(`Unified review JSON file not found at '${jsonPath}'.`);
+    }
+  }
+
+  if (!reviewData) {
     warnings.push("No unified review output provided. The HTML report will be empty.");
     const emptyHtml =
       "<!DOCTYPE html><html><head><title>BobTheTester</title></head><body><h1>No data</h1><p>Run generate_unified_review first.</p></body></html>";
@@ -470,7 +497,7 @@ export async function generateHtmlReport(
     };
   }
 
-  const html = generateHtml(input.unifiedReviewOutput);
+  const html = generateHtml(reviewData);
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, html, "utf-8");
 
