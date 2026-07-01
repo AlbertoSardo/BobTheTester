@@ -169,8 +169,10 @@ export interface ValidatePlaywrightSuiteFlowResult {
   coveredScenarios: string[];
   missingScenarios: string[];
   implementedScenarios: string[];
+  needsWiringScenarios: string[];
   scaffoldScenarios: string[];
   implementedScenarioIds: string[];
+  needsWiringScenarioIds: string[];
   scaffoldScenarioIds: string[];
   mappedSpecs: string[];
   missingSpecFiles: string[];
@@ -183,6 +185,7 @@ export interface ValidatePlaywrightSuiteOutput extends BaseToolResponse {
   targetFlows: string[];
   isComplete: boolean;
   incompleteFlows: string[];
+  needsWiringFlows: string[];
   scaffoldFlows: string[];
   flowResults: ValidatePlaywrightSuiteFlowResult[];
 }
@@ -319,7 +322,7 @@ export interface ReadBusinessReviewPolicyOutput extends BaseToolResponse {
   policy: { [key: string]: JsonValue };
 }
 
-export type ScenarioImplementationStatus = "scaffold" | "implemented";
+export type ScenarioImplementationStatus = "scaffold" | "needs-wiring" | "implemented";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
@@ -415,6 +418,7 @@ export interface FlowCoverageScore {
   uncoveredMustHold: string[];
   totalScenarios: number;
   implementedScenarios: number;
+  needsWiringScenarios: number;
   scaffoldScenarios: number;
   uncoveredScenarios: string[];
   uncoveredBranches: UncoveredBranch[];
@@ -511,6 +515,7 @@ export interface RegressionReviewOutput {
   suiteCompleteness: {
     isComplete: boolean;
     incompleteFlows: string[];
+    needsWiringFlows: string[];
     scaffoldFlows: string[];
   };
   riskLevel: RiskLevel;

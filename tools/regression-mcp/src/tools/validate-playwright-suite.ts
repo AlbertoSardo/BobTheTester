@@ -159,13 +159,23 @@ export async function validatePlaywrightSuite(
     const implementedScenarios = requiredScenarios.filter(
       (scenario) => requiredStatusByScenario.get(scenario)?.status === "implemented",
     );
+    const needsWiringScenarios = requiredScenarios.filter(
+      (scenario) =>
+        requiredStatusByScenario.has(scenario) &&
+        requiredStatusByScenario.get(scenario)?.status === "needs-wiring",
+    );
     const scaffoldScenarios = requiredScenarios.filter(
       (scenario) =>
         requiredStatusByScenario.has(scenario) &&
-        requiredStatusByScenario.get(scenario)?.status !== "implemented",
+        requiredStatusByScenario.get(scenario)?.status !== "implemented" &&
+        requiredStatusByScenario.get(scenario)?.status !== "needs-wiring",
     );
 
     const implementedScenarioIds = implementedScenarios
+      .map((scenario) => requiredStatusByScenario.get(scenario)?.scenarioId ?? toScenarioId(flowId, scenario))
+      .sort((a, b) => a.localeCompare(b));
+
+    const needsWiringScenarioIds = needsWiringScenarios
       .map((scenario) => requiredStatusByScenario.get(scenario)?.scenarioId ?? toScenarioId(flowId, scenario))
       .sort((a, b) => a.localeCompare(b));
 
@@ -179,8 +189,10 @@ export async function validatePlaywrightSuite(
       coveredScenarios: coveredScenariosSorted,
       missingScenarios,
       implementedScenarios,
+      needsWiringScenarios,
       scaffoldScenarios,
       implementedScenarioIds: toSortedUnique(implementedScenarioIds),
+      needsWiringScenarioIds: toSortedUnique(needsWiringScenarioIds),
       scaffoldScenarioIds: toSortedUnique(scaffoldScenarioIds),
       mappedSpecs,
       missingSpecFiles: toSortedUnique(missingSpecFiles),
@@ -192,8 +204,14 @@ export async function validatePlaywrightSuite(
       (result) =>
         result.missingScenarios.length > 0 ||
         result.missingSpecFiles.length > 0 ||
+        result.needsWiringScenarios.length > 0 ||
         result.scaffoldScenarios.length > 0,
     )
+    .map((result) => result.flowId)
+    .sort((a, b) => a.localeCompare(b));
+
+  const needsWiringFlows = flowResults
+    .filter((result) => result.needsWiringScenarios.length > 0)
     .map((result) => result.flowId)
     .sort((a, b) => a.localeCompare(b));
 
@@ -209,6 +227,7 @@ export async function validatePlaywrightSuite(
     targetFlows,
     isComplete: incompleteFlows.length === 0,
     incompleteFlows,
+    needsWiringFlows,
     scaffoldFlows,
     flowResults,
     warnings: toSortedUnique(warnings),

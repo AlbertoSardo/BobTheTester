@@ -14,10 +14,11 @@ Give it your business policy, it analyzes your PR, generates missing Playwright 
 flowchart TD
     A["Your PR"] --> B["BobTheTester"]
     B --> C["Detect impacted\nbusiness flows"]
-    C --> D["Generate + run\nPlaywright tests"]
-    D --> E["Coverage report\n+ quality gates"]
-    E -->|gaps found| F["Ask questions\n+ re-run"]
-    F --> D
+    C --> D["Discover existing tests\n+ runtime context"]
+    D --> E["Generate + run\nPlaywright tests"]
+    E --> F["Coverage report\n+ quality gates"]
+    F -->|gaps found| G["Ask questions\n+ re-run"]
+    G --> E
 ```
 
 ## Quick start
@@ -95,13 +96,24 @@ The same command file is shared via symlink — works identically in both client
 
 - **Terminal report**: summary, policy coverage per flow, test results, quality gates, recommended actions
 - **HTML dashboard** (`artifacts/report.html`): interactive treemap + radar charts with D3.js
-- **Generated Playwright specs**: scaffold tests for uncovered business flows
+- **Generated Playwright specs**: tests for uncovered business flows with honest status tracking
+- **JSON output** (`artifacts/unified-review-output.json`): full machine-readable results
+
+### Test status lifecycle
+
+| Status | Meaning | Gate credit |
+|--------|---------|:-----------:|
+| `scaffold` | Placeholder body, no real assertions | 0% |
+| `needs-wiring` | Real structure but unresolved integration points (TODO comments, unverified auth) | 0% |
+| `implemented` | Verified green in a real Playwright run | 100% |
+
+`implemented` is **never assigned automatically** — only after a verified green run. Tests with `TODO` comments are marked `needs-wiring`, not `implemented`.
 
 ### Quality gates
 
 | Gate | Passes when |
 |------|-------------|
-| Suite completeness | All impacted flows have implemented (non-scaffold) tests |
+| Suite completeness | All impacted flows have implemented tests (no scaffold or needs-wiring) |
 | Policy coverage | Coverage score >= 70% |
 | Regression risk | Risk level is `low` or `medium` |
 
@@ -110,7 +122,7 @@ The same command file is shared via symlink — works identically in both client
 | Dimension | Weight | What it measures |
 |-----------|--------|-----------------|
 | Regression scenarios | 50% | Implemented vs required test scenarios |
-| Must-hold invariants | 30% | Business invariants covered by tests |
+| Must-hold invariants | 30% | Business invariants covered by tests (matched via `[invariant-id:xxx]` tags or keyword fallback) |
 | Branch coverage | 20% | V8 branch coverage from Playwright |
 
 ## CLI usage (without Claude)
@@ -139,17 +151,22 @@ flowchart TD
     B --> C["Detect changed files via git diff"]
     C --> D["Map files to impacted business flows"]
 
-    D --> E["Regression path"]
+    D --> X["Discovery: scan existing tests\n(Cypress/Playwright), proxy, auth, APIs"]
+    X --> E["Regression path"]
     D --> F["Policy coverage path"]
 
-    E --> G["Generate missing Playwright specs"]
-    G --> H{"Specs to run?"}
+    E --> G["Generate Playwright specs\nusing discovered context"]
+    G --> V{"Smoke run"}
+    V -- pass --> G2["Promote to implemented"]
+    V -- fail --> G3["Mark needs-wiring\n+ add specific TODOs"]
+    G2 --> H{"Specs to run?"}
+    G3 --> H
     H -- Yes --> I["Run Playwright\n+ collect coverage"]
     H -- No --> J["Skip safely"]
     I --> K["Parse report & collect artifacts"]
     J --> K
 
-    F --> L["Evaluate policy coverage\n(must-hold, scenarios, branches)"]
+    F --> L["Evaluate policy coverage\n(invariant tags, scenarios, branches)"]
 
     K --> M["Evaluate quality gates"]
     L --> M
@@ -170,6 +187,8 @@ flowchart TD
     style Q fill:#dc2626,color:#fff
     style S fill:#7c3aed,color:#fff
     style U fill:#0ea5e9,color:#fff
+    style X fill:#8b5cf6,color:#fff
+    style G3 fill:#f97316,color:#fff
 ```
 
 ## Sandbox

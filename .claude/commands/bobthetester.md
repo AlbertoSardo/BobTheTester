@@ -95,68 +95,109 @@ If the policy source file **is** a `.json` file, skip this step and use it direc
 
 Call `read_business_review_policy` with the resolved `policyPath`. Understand which business flows exist and their required regression coverage.
 
-### Step 1.5 — Codebase context extraction
+### Step 1.5 — Discovery and test generation
 
-Before generating tests, collect concrete implementation details from the codebase for each impacted flow. This turns scaffold tests into implemented tests with real assertions.
+Before generating tests, you MUST discover the project's runtime context. **Never invent** auth mechanisms, URLs, IDs, selectors, or API shapes. Discover them from the codebase or mark the test `[status:needs-wiring]` with specific TODOs.
 
-For each flow in `impactedFlowIds`, run the following discovery passes using Bash and Read. Store what you find in memory — you will use it when writing spec files in Step 2.
+#### Phase A — Discover existing test suite (source of truth)
 
-**1. Existing spec patterns (always first)**
+Search for existing test infrastructure in this priority order:
 
-Read all existing spec files in the Playwright flows directory:
 ```bash
-ls <playwright-dir>/e2e/flows/*.spec.ts 2>/dev/null
-```
-For each existing spec, extract:
-- Helper functions defined at the top (e.g. `seedAuthenticatedSession`, `gotoSpa`, `stubBackend`, `wrap`)
-- Fake user/fixture objects (`FAKE_USER`, `FAKE_EMPLOYEE_INFO`, fixture employee IDs)
-- `page.route()` patterns and response shapes already in use
-- `addInitScript` patterns for auth injection
-
-This is your **shared helpers baseline** — reuse these patterns exactly in all new specs rather than inventing new ones.
-
-**2. Route discovery**
-
-Find the URL path for the flow's entry screen:
-```bash
-grep -r "path\|route\|Route" <src-dir>/core/routes/ <src-dir>/**/routes*.ts 2>/dev/null | grep -i "<flow-keyword>"
-grep -r "\"/<flow-keyword>\|'/<flow-keyword>" <src-dir> --include="*.ts" --include="*.tsx" -l 2>/dev/null | head -5
-```
-Extract the full URL pattern (e.g. `/employee/:id/entry-exam`). Replace `:id` with the fixture employee ID found in step 1.
-
-**3. DOM anchor discovery**
-
-Find selectors available in the flow's components:
-```bash
-grep -r "data-cy=" <src-dir>/pages/<flow-dir>/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -o 'data-cy="[^"]*"' | sort -u
-grep -r "id=\"" <src-dir>/pages/<flow-dir>/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -o 'id="[^"]*"' | sort -u
-```
-Also grep for visible label strings that can anchor assertions:
-```bash
-grep -r "t(\|i18n\|label\|title" <src-dir>/pages/<flow-dir>/ --include="*.ts" --include="*.tsx" 2>/dev/null | head -20
+# 1. Existing Playwright tests
+find . -path "*/playwright/**/*.spec.ts" -o -path "*/e2e/**/*.spec.ts" 2>/dev/null | head -20
+# 2. Existing Cypress tests
+find . -path "*/cypress/**/*.cy.*" -o -path "*/cypress/**/*.spec.*" 2>/dev/null | head -20
+# 3. Test support files
+find . -path "*/cypress/support/*" -o -path "*/playwright/**/fixtures/*" -o -path "*/cypress/fixtures/*" 2>/dev/null | head -20
 ```
 
-**4. API endpoint discovery**
+For every test file found, read it and extract:
+- **Auth pattern**: how tests authenticate (`sessionStorage.setItem`, `addInitScript`, `cy.login`, token fixtures, env flags like `VITE_SECURITY_LOCAL_ENABLED`)
+- **API stubs**: `page.route()`, `cy.intercept()`, `cy.route()` — map endpoint → fixture/response shape
+- **Fixture data**: JSON fixtures with real IDs, shapes, field names (employee IDs, user objects, etc.)
+- **Selectors**: `data-cy`, `data-testid`, `getByRole`, `getByLabel` patterns actually in use
+- **Navigation helpers**: how tests reach pages (`page.goto`, SPA navigation via `pushState`, custom helpers like `gotoSpa`)
 
-Find which API calls the flow makes:
+**This is your ground truth.** Reuse these exact patterns. Do NOT invent alternatives.
+
+#### Phase B — Discover runtime model
+
+**1. Dev server proxy rules** (critical for SPAs):
 ```bash
-find <src-dir> -name "*.service.ts" -o -name "*.api.ts" | xargs grep -l "<flow-keyword>" 2>/dev/null | head -5
+# Vite
+grep -A5 "proxy" vite.config.* 2>/dev/null || grep -A5 "proxy" */vite.config.* 2>/dev/null
+# Webpack
+grep -A5 "devServer" webpack.config.* 2>/dev/null
+# Next.js
+grep -A5 "rewrites\|redirects" next.config.* 2>/dev/null
 ```
-Read those files and extract: HTTP method, URL pattern, and the TypeScript response interface. These become your `page.route()` stubs.
+If proxy rules exist (e.g. `/api → backend`), the SPA must be loaded via its root URL, NOT by `page.goto` on a proxied route (which would hit the backend and return a 404 or Whitelabel error). Navigate using the SPA's client-side router after loading the root page.
 
-**5. Write tests directly — do not use `generate_playwright_suite` for impacted flows**
+**2. Auth strategy**:
+```bash
+# Check for local auth bypass flags
+grep -r "SECURITY_LOCAL\|AUTH_MOCK\|BYPASS_AUTH\|LOCAL_AUTH" . --include="*.env*" --include="*.ts" --include="*.tsx" 2>/dev/null | head -10
+# Check how session is established
+grep -r "sessionStorage\|localStorage\|accessToken\|Bearer" . --include="*.ts" --include="*.tsx" 2>/dev/null | grep -i "set\|store\|save" | head -10
+```
 
-Once you have the context, **write the spec files yourself** using the Write tool:
-- Import and reuse helpers from existing specs (don't copy-paste, import)
-- Use the real entry path from step 2 for navigation
-- Use real `data-cy`, `id`, or text anchors from step 3 for assertions
-- Stub the exact API endpoints from step 4 with minimal valid response shapes
-- Mark every test `[status:implemented]` — not scaffold
-- Follow the exact test title format from the policy's `minimumRegressionCoverage` scenarios
+**3. Bootstrap API calls** (what the app fetches on load):
+```bash
+# Find API service files for the flow
+grep -rl "fetch\|axios\|httpClient\|createAsyncThunk" <src-dir> --include="*.ts" --include="*.tsx" 2>/dev/null | xargs grep -l "<flow-keyword>" | head -5
+```
+Read those files and extract the exact endpoints, HTTP methods, and response shapes. These MUST be stubbed in your test's `beforeEach`.
+
+**4. Route paths**:
+```bash
+grep -r "path.*=\|Route.*path\|route(" <src-dir> --include="*.ts" --include="*.tsx" 2>/dev/null | grep -i "<flow-keyword>" | head -10
+```
+
+**5. DOM anchors**:
+```bash
+grep -r "data-cy=\|data-testid=\|aria-label=" <src-dir>/pages/<flow-dir>/ --include="*.tsx" 2>/dev/null | grep -o '\(data-cy\|data-testid\|aria-label\)="[^"]*"' | sort -u
+```
+
+#### Phase C — Write tests with discovered context
+
+Once discovery is complete, **write the spec files yourself** using the Write tool. Follow these rules strictly:
+
+**Status assignment (CRITICAL):**
+- `[status:scaffold]` — placeholder body, `expect(true).toBe(true)`. Use when you have NO context for the flow.
+- `[status:needs-wiring]` — the test has real structure but unresolved integration points. Use when:
+  - Auth setup is discovered but you're not 100% sure it works
+  - API stubs are based on inferred shapes (not copied from existing fixtures)
+  - Any `TODO(integration)` comment is present
+  - The test has never been executed green
+- `[status:implemented]` — **NEVER assign this automatically.** This status means the test has been verified green in a real run. Only promote to `implemented` after a successful Playwright execution in Step 2 or a manual verification.
+
+**Test content rules:**
+- Reuse helpers, fixtures, and auth patterns from Phase A exactly — do NOT reinvent
+- Stub ALL bootstrap API calls discovered in Phase B.3 — if you miss one, the component won't render
+- Navigate via the SPA root + client-side routing if proxy rules exist (Phase B.1)
+- Use real selectors from Phase B.5, not guessed ones
+- Use fixture IDs from Phase A, not invented ones (no `1001`, `5001` unless found in fixtures)
+
+**Must-hold invariant tags:**
+- For each `mustHold` invariant in the policy, if you write a test that covers it, add `[invariant-id:xxx]` to the test title (where `xxx` is the invariant's ID or a slugified version of its text)
 
 Register the new spec in `flow-spec-map.json` if not already present.
 
-**If context discovery finds nothing** (e.g. the flow directory does not exist yet, or grep returns empty), fall through to `generate_playwright_suite` to produce scaffolds as usual — do not block the pipeline.
+**If context discovery finds nothing** (e.g. no existing tests, no routes, no selectors), fall through to `generate_playwright_suite` to produce scaffolds. Do not attempt to write `needs-wiring` tests with fully invented context.
+
+#### Phase D — Smoke verification
+
+After writing tests, run a quick smoke check on each new spec:
+
+```bash
+cd <dir-with-playwright-config> && npx playwright test <new-spec> --project chromium --reporter list 2>&1 | tail -20
+```
+
+Based on the result:
+- **All tests pass** → promote to `[status:implemented]` (update the test file)
+- **Tests fail with missing selectors/routes/API errors** → keep as `[status:needs-wiring]`, add specific TODO comments for each failure, and include the error details in the report
+- **Tests fail with infrastructure errors** (Playwright not found, config wrong) → keep as `[status:scaffold]` and report the infrastructure issue
 
 ### Step 2 — Run the unified review
 
@@ -219,15 +260,14 @@ If there are blocking questions:
 
 ### Step 4 — Generate HTML dashboard
 
-Call `generate_html_report` to produce an interactive HTML dashboard at `artifacts/report.html` with treemap, radar charts, quality gates table, and recommended actions.
+1. **Always save** the unified review output to `artifacts/unified-review-output.json` using the Write tool. This ensures the data is available regardless of size.
+2. Call `generate_html_report` with `unifiedReviewJsonPath: "artifacts/unified-review-output.json"`. This avoids MCP tool-call size limits entirely.
 
-**If the unified review output is small enough to pass inline** (< ~100 KB), pass it directly as `unifiedReviewOutput`.
-
-**If the output is too large** (tool call fails with size/truncation errors):
-1. Save the unified review JSON to a file: `artifacts/unified-review-output.json`
-2. Call `generate_html_report` with `unifiedReviewJsonPath: "artifacts/unified-review-output.json"` instead of passing the object inline.
-
-After generating, tell the user: "Interactive report generated: artifacts/report.html"
+After generating, tell the user:
+```
+Interactive report: artifacts/report.html
+Full JSON output:   artifacts/unified-review-output.json
+```
 
 ### Step 5 — Produce the terminal report
 
@@ -244,13 +284,13 @@ One-paragraph overview: how many files changed, which business flows are impacte
 For each impacted business flow, show:
 - **Flow ID** and overall coverage score (0-100%)
 - **Must-hold invariants**: how many covered vs total, list any uncovered invariants
-- **Regression scenarios**: how many implemented vs scaffold vs missing, list uncovered scenarios
+- **Regression scenarios**: how many implemented vs needs-wiring vs scaffold vs missing, list uncovered scenarios
 - **Branch coverage**: percentage of code branches covered by Playwright tests (if coverage data available)
 
 Show a compact per-flow summary like:
 ```
-user-onboarding:    85%  (must-hold: 3/3, scenarios: 2/3 implemented, branches: 72%)
-profile-edit:       40%  (must-hold: 1/3, scenarios: 0/3 implemented, branches: 0%)
+user-onboarding:    85%  (must-hold: 3/3, scenarios: 2/3 implemented, 1 needs-wiring, branches: 72%)
+profile-edit:       40%  (must-hold: 1/3, scenarios: 0/3 implemented, 2 scaffold, branches: 0%)
 ```
 
 Overall policy coverage score and whether the coverage gate passed (threshold: 70%).

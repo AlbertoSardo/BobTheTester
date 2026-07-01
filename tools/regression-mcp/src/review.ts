@@ -205,6 +205,7 @@ export async function generateRegressionReview(
   const safeFlowResults = suiteValidation.flowResults ?? [];
   const safeSuiteIsComplete = suiteValidation.isComplete ?? false;
   const safeIncompleteFlows = suiteValidation.incompleteFlows ?? [];
+  const safeNeedsWiringFlows = suiteValidation.needsWiringFlows ?? [];
   const safeScaffoldFlows = suiteValidation.scaffoldFlows ?? [];
 
   const suiteGapSuggestions: string[] = [];
@@ -218,6 +219,12 @@ export async function generateRegressionReview(
     if (flowResult.missingScenarios.length > 0) {
       suiteGapSuggestions.push(
         `Flow '${flowResult.flowId}' is missing coverage scenarios: ${flowResult.missingScenarios.join(", ")}.`,
+      );
+    }
+
+    if (flowResult.needsWiringScenarios.length > 0) {
+      suiteGapSuggestions.push(
+        `Flow '${flowResult.flowId}' has needs-wiring scenarios that block regression gate: ${flowResult.needsWiringScenarios.join(", ")}.`,
       );
     }
 
@@ -250,7 +257,8 @@ export async function generateRegressionReview(
   ]);
 
   const hasBlockingClarifications = safePolicyClarificationQuestions.some((question) => question.blocking);
-  const hasCoverageGaps = mergedSuggestions.length > 0 || safeScaffoldFlows.length > 0;
+  const hasCoverageGaps =
+    mergedSuggestions.length > 0 || safeNeedsWiringFlows.length > 0 || safeScaffoldFlows.length > 0;
   const riskLevel = deriveRegressionRiskLevel(
     report.totals.failed,
     hasCoverageGaps,
@@ -307,6 +315,7 @@ export async function generateRegressionReview(
     suiteCompleteness: {
       isComplete: safeSuiteIsComplete,
       incompleteFlows: safeIncompleteFlows,
+      needsWiringFlows: safeNeedsWiringFlows,
       scaffoldFlows: safeScaffoldFlows,
     },
     riskLevel,

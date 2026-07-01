@@ -44,6 +44,12 @@ function deriveRegressionActions(review: RegressionReviewOutput): string[] {
     actions.push("Complete missing regression suite coverage for all incomplete impacted flows.");
   }
 
+  if (review.suiteCompleteness.needsWiringFlows.length > 0) {
+    actions.push(
+      "Resolve integration points (TODOs, auth setup, placeholder IDs) in needs-wiring scenarios before merge.",
+    );
+  }
+
   if (review.suiteCompleteness.scaffoldFlows.length > 0) {
     actions.push(
       "Replace scaffold-only scenarios with implemented Playwright assertions for impacted flows before merge.",
@@ -134,7 +140,7 @@ export async function generateUnifiedReview(input: UnifiedReviewInput = {}): Pro
       },
       suggestedMissingTests: { flowsWithoutSpecs: [], unmappedFiles: [], suggestions: [] },
       clarificationQuestions: [],
-      suiteCompleteness: { isComplete: false, incompleteFlows: [], scaffoldFlows: [] },
+      suiteCompleteness: { isComplete: false, incompleteFlows: [], needsWiringFlows: [], scaffoldFlows: [] },
       riskLevel: "critical",
       execution: {
         command: [],

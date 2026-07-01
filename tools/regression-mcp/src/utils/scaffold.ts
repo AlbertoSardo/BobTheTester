@@ -7,6 +7,7 @@ export const COVERAGE_TITLE_PREFIX = "covers: ";
 interface CoverageMarkers {
   scenarioId?: string;
   status?: ScenarioImplementationStatus;
+  invariantIds: string[];
   hasScenarioIdMarker: boolean;
   hasStatusMarker: boolean;
 }
@@ -33,11 +34,12 @@ function parseMarkers(value: string): CoverageMarkers {
   const markers: CoverageMarkers = {
     scenarioId: undefined,
     status: undefined,
+    invariantIds: [],
     hasScenarioIdMarker: false,
     hasStatusMarker: false,
   };
 
-  const markerPattern = /\s+\[(scenario-id|status):([^\]]+)\]/g;
+  const markerPattern = /\s+\[(scenario-id|status|invariant-id):([^\]]+)\]/g;
   let match = markerPattern.exec(value);
 
   while (match) {
@@ -58,6 +60,10 @@ function parseMarkers(value: string): CoverageMarkers {
       }
     }
 
+    if (markerKey === "invariant-id" && markerValue.length > 0) {
+      markers.invariantIds.push(markerValue);
+    }
+
     match = markerPattern.exec(value);
   }
 
@@ -69,7 +75,7 @@ export function parseCoverageTitle(title: string): ParsedCoverageTitle | undefin
     return undefined;
   }
 
-  const markerPattern = /\s+\[(scenario-id|status):([^\]]+)\]/g;
+  const markerPattern = /\s+\[(scenario-id|status|invariant-id):([^\]]+)\]/g;
   const content = title.slice(COVERAGE_TITLE_PREFIX.length);
   const markers = parseMarkers(content);
   const scenarioTitle = content.replace(markerPattern, "").trim();

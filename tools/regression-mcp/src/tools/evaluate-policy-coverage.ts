@@ -19,6 +19,7 @@ import type {
   FlowSpecMapConfig,
   JsonValue,
   RiskLevel,
+  ScenarioImplementationStatus,
   ToolingConfig,
   UncoveredBranch,
 } from "../types.js";
@@ -223,7 +224,8 @@ async function loadCoverageReport(reportPath: string, warnings: string[]): Promi
 
 interface SpecScenarioEntry {
   scenarioTitle: string;
-  status: "scaffold" | "implemented";
+  status: ScenarioImplementationStatus;
+  invariantIds: string[];
 }
 
 function extractScenarioEntries(specContent: string): SpecScenarioEntry[] {
@@ -238,6 +240,7 @@ function extractScenarioEntries(specContent: string): SpecScenarioEntry[] {
       entries.push({
         scenarioTitle: parsed.scenarioTitle,
         status: parsed.status ?? "scaffold",
+        invariantIds: parsed.invariantIds,
       });
     }
     match = testTitlePattern.exec(specContent);
@@ -297,6 +300,17 @@ function computeBranchCoverageForFlow(
 
   const branchCoverage = matchedFiles > 0 ? Math.round(totalPct / matchedFiles) : 0;
   return { branchCoverage, uncoveredBranches: allUncovered.slice(0, 25) };
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .slice(0, 4)
+    .join("-")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
 }
 
 function deriveCoverageRiskLevel(overallScore: number): RiskLevel {
@@ -440,46 +454,74 @@ async function evaluateFlowScore(
   const implementedTitles = new Set(
     allScenarioEntries.filter((e) => e.status === "implemented").map((e) => e.scenarioTitle),
   );
+  const needsWiringTitles = new Set(
+    allScenarioEntries
+      .filter((e) => e.status === "needs-wiring")
+      .map((e) => e.scenarioTitle)
+      .filter((t) => !implementedTitles.has(t)),
+  );
   const scaffoldTitles = new Set(
     allScenarioEntries
       .filter((e) => e.status === "scaffold")
       .map((e) => e.scenarioTitle)
-      .filter((t) => !implementedTitles.has(t)),
+      .filter((t) => !implementedTitles.has(t) && !needsWiringTitles.has(t)),
   );
 
-  // Must-hold coverage: an invariant is "covered" if there's an implemented scenario
-  // whose title contains keywords from the invariant
+  // Must-hold coverage: an invariant is "covered" if either:
+  // 1. (Primary) An implemented test has an [invariant-id:xxx] marker matching the invariant's ID
+  // 2. (Fallback) Keyword matching — at least 40% of meaningful words appear in a test title
   const coveredMustHoldItems: string[] = [];
   const uncoveredMustHoldItems: string[] = [];
 
   for (const invariant of mustHoldItems) {
-    const invariantWords = invariant
+    // Extract optional ID prefix from invariant text: "[id:xxx] description"
+    const idMatch = invariant.match(/^\[id:([^\]]+)\]\s*/);
+    const invariantId = idMatch ? idMatch[1] : slugify(invariant);
+    const invariantText = idMatch ? invariant.slice(idMatch[0].length) : invariant;
+
+    // Primary: tag-based matching via [invariant-id:xxx] markers in test titles
+    const tagCovered = allScenarioEntries.some(
+      (e) => e.status === "implemented" && e.invariantIds.includes(invariantId),
+    );
+
+    if (tagCovered) {
+      coveredMustHoldItems.push(invariant);
+      continue;
+    }
+
+    // Fallback: keyword matching
+    const invariantWords = invariantText
       .toLowerCase()
       .split(/\s+/)
       .filter((w) => w.length > 3);
-    const isCovered = Array.from(implementedTitles).some((title) => {
+    const keywordCovered = Array.from(implementedTitles).some((title) => {
       const titleLower = title.toLowerCase();
-      // At least 40% of meaningful words from the invariant appear in a test title
       const matchingWords = invariantWords.filter((word) => titleLower.includes(word));
       return invariantWords.length > 0 && matchingWords.length >= Math.ceil(invariantWords.length * 0.4);
     });
 
-    if (isCovered) {
+    if (keywordCovered) {
       coveredMustHoldItems.push(invariant);
-    } else {
-      uncoveredMustHoldItems.push(invariant);
+      continue;
     }
+
+    uncoveredMustHoldItems.push(invariant);
   }
 
   // 2. Regression scenario coverage
   const implementedScenarioCount = minimumCoverage.filter((scenario) =>
     implementedTitles.has(scenario),
   ).length;
+  const needsWiringScenarioCount = minimumCoverage.filter(
+    (scenario) => needsWiringTitles.has(scenario) && !implementedTitles.has(scenario),
+  ).length;
   const scaffoldScenarioCount = minimumCoverage.filter(
-    (scenario) => scaffoldTitles.has(scenario) && !implementedTitles.has(scenario),
+    (scenario) =>
+      scaffoldTitles.has(scenario) && !implementedTitles.has(scenario) && !needsWiringTitles.has(scenario),
   ).length;
   const uncoveredScenarioList = minimumCoverage.filter(
-    (scenario) => !implementedTitles.has(scenario) && !scaffoldTitles.has(scenario),
+    (scenario) =>
+      !implementedTitles.has(scenario) && !needsWiringTitles.has(scenario) && !scaffoldTitles.has(scenario),
   );
 
   // 3. Branch coverage for this flow's files
@@ -506,6 +548,7 @@ async function evaluateFlowScore(
     uncoveredMustHold: uncoveredMustHoldItems,
     totalScenarios: minimumCoverage.length,
     implementedScenarios: implementedScenarioCount,
+    needsWiringScenarios: needsWiringScenarioCount,
     scaffoldScenarios: scaffoldScenarioCount,
     uncoveredScenarios: uncoveredScenarioList,
     uncoveredBranches,
@@ -582,6 +625,12 @@ export async function evaluatePolicyCoverage(
     if (fs.uncoveredScenarios.length > 0) {
       recommendedActions.push(
         `Implement Playwright tests for uncovered scenarios in flow '${fs.flowId}': ${fs.uncoveredScenarios.join(", ")}.`,
+      );
+    }
+
+    if (fs.needsWiringScenarios > 0) {
+      recommendedActions.push(
+        `Wire up ${fs.needsWiringScenarios} needs-wiring test(s) in flow '${fs.flowId}' (resolve TODOs, auth setup, placeholder IDs).`,
       );
     }
 
