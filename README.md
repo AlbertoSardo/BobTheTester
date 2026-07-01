@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="BobTheTester" width="200">
+</p>
+
 # BobTheTester
 
 Automated regression review and policy coverage analysis for PRs, powered by MCP tools and Playwright.
