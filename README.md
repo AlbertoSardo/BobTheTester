@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo2.png" alt="BobTheTester" width="200">
+  <img src="assets/logo2.png" alt="BobTheTester" width="400">
 </p>
 
 # BobTheTester
